@@ -19,6 +19,15 @@ linux_re = re.compile(
     '.*?[+-]?\\d*\\.\\d+(?![-+0-9\\.]).*?[+-]?\\d*\\.\\d+(?![-+0-9\\.]).*?([+-]?\\d*\\.\\d+)(?![-+0-9\\.])',
     re.IGNORECASE | re.DOTALL)
 
+darwin_re = re.compile(r'''
+    \s?([0-9]*) # capture the bytes of data
+    \sbytes\sfrom\s # bytes from
+    (\d+\.\d+\.\d+\.\d+):
+    \s+icmp_seq=(\d+)  # capture icmp_seq
+    \s+ttl=(\d+)  # capture ttl
+    \s+time=(?:([0-9\.]+)\s+ms)  # capture time''',
+    re.VERBOSE | re.IGNORECASE | re.DOTALL)
+
 buff = collections.deque([0 for _ in range(20)], maxlen=400)
 
 P = collections.namedtuple("Point", "x y")
@@ -224,6 +233,15 @@ def _linux(url):
         if line.startswith("64 bytes from"):
             yield round(float(linux_re.search(line).group(1)))
 
+def _darwin(url):
+    ping = subprocess.Popen(["ping", url], stdout=subprocess.PIPE)
+    while True:
+        line = ping.stdout.readline().decode()
+        if line.startswith("64 bytes from"):
+            yield round(float(darwin_re.search(line).group(5)))
+        elif line.startswith("Request timeout"):
+            yield -1.0;
+
 
 def _simulate(url):
     import time, random
@@ -246,7 +264,13 @@ def run():
     if url == "--sim":
         it = _simulate()
     else:
-        it = _windows if platform.system() == "Windows" else _linux
+        system = platform.system()
+        if system == "Windows":
+            it = _windows
+        elif system == "Darwin":
+            it = _darwin
+        else:
+            it = _linux
 
     for ping in it(url):
         buff.appendleft(ping)
