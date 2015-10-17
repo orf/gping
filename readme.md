@@ -4,11 +4,11 @@ Ping, but with a graph
 ![](/doc/readme_screencast.gif)
 
 ## Install and run
-Created/tested with Python 3.4, should run on 2.7 (will require the `staticstics` module though).
+Created/tested with Python 3.4, should run on 2.7 (will require the `statistics` module though).
 
 `pip3 install pinggraph`
 
-Tested on Windows and Ubuntu, should run on MacOS as well. After installation just run:
+Tested on Windows and Ubuntu, should run on OS X as well. After installation just run:
 
 `gping [yourhost]`
 
