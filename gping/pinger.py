@@ -8,7 +8,10 @@ import platform
 import io
 
 from colorama import Fore, init
-from colorama.ansitowin32 import winterm
+try:
+    from colorama.ansitowin32 import winterm
+except Exception:
+    winterm = None
 import sys
 
 from gping.termsize import get_terminal_size
