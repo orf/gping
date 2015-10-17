@@ -7,12 +7,12 @@ import statistics
 import platform
 import io
 
-from colorama import Fore
+from colorama import Fore, init
 from colorama.ansitowin32 import winterm
 import sys
 
 from gping.termsize import get_terminal_size
-
+init()
 windows_re = re.compile('.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?(\\d+)', re.IGNORECASE | re.DOTALL)
 
 linux_re = re.compile(
@@ -103,13 +103,13 @@ class ConsoleCanvas(object):
             last_point = point
 
     def process_colors(self):
+        # Try and optimize colours. Maybe not needed on *nix?
         for row_idx, color_row in enumerate(self.colors._bitmap):
-            last_color, last_blank = None, False
+            last_color = None
             r = io.StringIO()
             for col_idx, color_item in enumerate(color_row):
                 d = self.bitmap._bitmap[row_idx][col_idx]
                 if d and d != " ":
-                    last_blank = False
                     if color_item:
                         if color_item != last_color:
                             r.write(color_item)

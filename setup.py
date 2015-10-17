@@ -12,7 +12,7 @@ setup(
     requires=['colorama'],
     entry_points={
         "console_scripts": [
-            "gping=pinggraph.pinger:run"
+            "gping=gping.pinger:run"
         ]
     }
 )
