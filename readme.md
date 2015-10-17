@@ -4,7 +4,7 @@ Ping, but with a graph
 ![](/doc/readme_screencast.gif)
 
 ## Install and run
-Created/tested with Python 3.4, requires the `staticstics` module on 2.7.
+Created/tested with Python 3.4, should run on 2.7 (will require the `staticstics` module though).
 
 `pip3 install pinggraph`
 
@@ -13,6 +13,13 @@ Tested on Windows and Ubuntu, should run on MacOS as well. After installation ju
 `gping [yourhost]`
 
 If you don't give a host then it pings google.
+
+## Why?
+My apartments internet is all 4g, and while it's normally pretty fast it can be a bit flakey. I often
+found myself running `ping -t google.com` in a command window to get a rough idea of the network speed,
+and I thought a graph would be a great way to visualize the data. I still wanted to just use the command
+line though, so I decided to try and write a cross platform one that I could use. And here we are.
+
 
 ## Code
 For a quick hack the code started off really nice, but after I decided pretty colors
