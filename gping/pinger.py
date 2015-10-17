@@ -8,6 +8,7 @@ import platform
 import io
 
 from colorama import Fore, init
+
 try:
     from colorama.ansitowin32 import winterm
 except Exception:
@@ -15,6 +16,7 @@ except Exception:
 import sys
 
 from gping.termsize import get_terminal_size
+
 init()
 windows_re = re.compile('.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?(\\d+)', re.IGNORECASE | re.DOTALL)
 
@@ -27,7 +29,7 @@ darwin_re = re.compile(r'''
     \s+icmp_seq=(\d+)  # capture icmp_seq
     \s+ttl=(\d+)  # capture ttl
     \s+time=(?:([0-9\.]+)\s+ms)  # capture time''',
-    re.VERBOSE | re.IGNORECASE | re.DOTALL)
+                       re.VERBOSE | re.IGNORECASE | re.DOTALL)
 
 buff = collections.deque([0 for _ in range(20)], maxlen=400)
 
@@ -234,6 +236,7 @@ def _linux(url):
         if line.startswith("64 bytes from"):
             yield round(float(linux_re.search(line).group(1)))
 
+
 def _darwin(url):
     ping = subprocess.Popen(["ping", url], stdout=subprocess.PIPE)
     while True:
@@ -256,7 +259,7 @@ def _simulate(url):
         time.sleep(0.1)
 
 
-def run():
+def _run():
     try:
         url = sys.argv[1]
     except IndexError:
@@ -284,8 +287,12 @@ def run():
         print("\n".join(c.process_colors()))
 
 
-if __name__ == "__main__":
+def run():
     try:
-        run()
+        _run()
     except KeyboardInterrupt:
         pass
+
+
+if __name__ == "__main__":
+    run()
