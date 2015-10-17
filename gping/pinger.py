@@ -15,9 +15,7 @@ from gping.termsize import get_terminal_size
 init()
 windows_re = re.compile('.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?(\\d+)', re.IGNORECASE | re.DOTALL)
 
-linux_re = re.compile(
-    '.*?[+-]?\\d*\\.\\d+(?![-+0-9\\.]).*?[+-]?\\d*\\.\\d+(?![-+0-9\\.]).*?([+-]?\\d*\\.\\d+)(?![-+0-9\\.])',
-    re.IGNORECASE | re.DOTALL)
+linux_re = re.compile(r'time=(\d+(?:\.\d+)?) *ms', re.IGNORECASE)
 
 buff = collections.deque([0 for _ in range(20)], maxlen=400)
 
