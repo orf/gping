@@ -11,7 +11,7 @@ from colorama import Fore
 from colorama.ansitowin32 import winterm
 import sys
 
-from pinggraph.termsize import get_terminal_size
+from gping.termsize import get_terminal_size
 
 windows_re = re.compile('.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?(\\d+)', re.IGNORECASE | re.DOTALL)
 
