@@ -244,7 +244,7 @@ def run():
         url = "google.com"
 
     if url == "--sim":
-        it = _simulate()
+        it = _simulate
     else:
         it = _windows if platform.system() == "Windows" else _linux
 
