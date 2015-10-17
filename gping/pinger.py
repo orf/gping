@@ -15,9 +15,7 @@ from gping.termsize import get_terminal_size
 init()
 windows_re = re.compile('.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?(\\d+)', re.IGNORECASE | re.DOTALL)
 
-linux_re = re.compile(
-    '.*?[+-]?\\d*\\.\\d+(?![-+0-9\\.]).*?[+-]?\\d*\\.\\d+(?![-+0-9\\.]).*?([+-]?\\d*\\.\\d+)(?![-+0-9\\.])',
-    re.IGNORECASE | re.DOTALL)
+linux_re = re.compile(r'time=(\d+(?:\.\d+)?) *ms', re.IGNORECASE)
 
 buff = collections.deque([0 for _ in range(20)], maxlen=400)
 
@@ -244,7 +242,7 @@ def run():
         url = "google.com"
 
     if url == "--sim":
-        it = _simulate()
+        it = _simulate
     else:
         it = _windows if platform.system() == "Windows" else _linux
 
