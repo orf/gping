@@ -28,7 +28,8 @@ darwin_re = re.compile(r'''
     (\d+\.\d+\.\d+\.\d+):
     \s+icmp_seq=(\d+)  # capture icmp_seq
     \s+ttl=(\d+)  # capture ttl
-    \s+time=(?:([0-9\.]+)\s+ms)  # capture time''',
+    \s+time=(?:([0-9\.]+)\s+ms)  # capture time
+    ''',
                        re.VERBOSE | re.IGNORECASE | re.DOTALL)
 
 buff = collections.deque([0 for _ in range(20)], maxlen=400)
