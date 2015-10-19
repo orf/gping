@@ -264,7 +264,7 @@ def _run():
     try:
         url = sys.argv[1]
     except IndexError:
-        url = "google.com"
+        url = "example.com"
 
     if url == "--sim":
         it = _simulate

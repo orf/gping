@@ -12,7 +12,7 @@ Tested on Windows and Ubuntu, should run on OS X as well. After installation jus
 
 `gping [yourhost]`
 
-If you don't give a host then it pings google.
+If you don't give a host then it pings [`example.com`](http://example.com/).
 
 ## Why?
 My apartments internet is all 4g, and while it's normally pretty fast it can be a bit flakey. I often
