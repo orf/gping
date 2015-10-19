@@ -228,6 +228,8 @@ def _windows(url):
             yield int(windows_re.search(line).group(1))
         elif "timed out" in line or "failure" in line:
             yield None
+        if ping.poll():
+            break
 
 
 def _linux(url):
@@ -236,6 +238,8 @@ def _linux(url):
         line = ping.stdout.readline().decode()
         if line.startswith("64 bytes from"):
             yield round(float(linux_re.search(line).group(1)))
+        if ping.poll():
+            break
 
 
 def _darwin(url):
@@ -246,6 +250,8 @@ def _darwin(url):
             yield round(float(darwin_re.search(line).group(5)))
         elif line.startswith("Request timeout"):
             yield None
+        if ping.poll():
+            break
 
 
 def _simulate(url):
