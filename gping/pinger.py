@@ -15,7 +15,7 @@ except Exception:
     winterm = None
 import sys
 
-from gping.termsize import get_terminal_size
+from termsize import get_terminal_size
 
 init()
 windows_re = re.compile('.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?(\\d+)', re.IGNORECASE | re.DOTALL)
@@ -40,24 +40,31 @@ hidden = object()
 
 class Bitmap(object):
     def __init__(self, width, height, default=" "):
+        ''' the pane on which we are oing to draw'''
         self.width = width
         self.height = height
         self._bitmap = [
             [default for _ in range(width + 1)]
             for _ in range(height + 1)
             ]
-
-    def __getitem__(self, idx):
-        if isinstance(idx, P):
+    def __getitem__(self, point):
+        ''' we get the value at the given point
+            raise an error if the passed item is not Point object or Integer object
+        '''
+        if isinstance(point, P):
             return self._bitmap[self.height - idx.y][idx.x]
-        elif not isinstance(idx, int):
+        #
+        elif not isinstance(point, int):
             raise RuntimeError("Can only index Bitmaps using an integer")
 
         return self._bitmap[self.height - idx]
 
-    def __setitem__(self, key, value):
-        if isinstance(key, P):
-            self._bitmap[self.height - key.y][key.x] = value
+    def __setitem__(self, point, value):
+        ''' we set the value at the given point 
+            raise an error if its not Point Object
+        '''
+        if isinstance(point, P):
+            self._bitmap[self.height - int(point.y)][int(point.x)] = value
         else:
             raise RuntimeError("Can only use __setitem__ with a point")
 
@@ -67,26 +74,34 @@ class ConsoleCanvas(object):
         self.bitmap = Bitmap(width, height)
         self.colors = Bitmap(width, height, default="")
 
-    def point(self, p, data, paint=None):
-        self.bitmap[p] = data
+    def point(self, point, data, paint=None):
+        ''' Args :
+                point - point where the data shall be placed
+                data 
+                paint
+        '''
+        self.bitmap[point] = data
         if isinstance(paint, str):
-            self.colors[p] = paint
+            self.colors[point] = paint
         else:
-            self.colors[p] = paint(p) if paint else ""
+            self.colors[point] = paint(point) if paint else ""
 
     # Yes, these two methods could be refactored :/
     def horizontal_line(self, data, row, from_, to=None, paint=None):
+
         data_iter = iter(data)
-        for idx, i in enumerate(range(from_, (to or from_ + len(data)))):
+        for idx, i in enumerate(range(int(from_), ((int(to) if to else None) or int(from_) + len(data)))):
             p = P(i, row)
             self.point(p, next(data_iter), paint)
 
     def vertical_line(self, character, column, from_, to, paint=None):
-        for i in range(from_, to + 1):
+        to = int(to)
+        from_ = int(from_)
+        for i in range(from_,to + 1):
             p = P(column, i)
             self.point(p, character, paint)
 
-    def line(self, from_: P, to: P, paint=None, character=None):
+    def line(self, from_, to, paint=None, character=None):
         from_, to = sorted([from_, to])
 
         if from_.x == to.x:
@@ -99,7 +114,7 @@ class ConsoleCanvas(object):
         else:
             raise RuntimeError("Diagonal lines are not supported")
 
-    def box(self, bottom_left_corner: P, top_right_corner: P, paint=None, blank=False):
+    def box(self, bottom_left_corner, top_right_corner, paint=None, blank=False):
         path = [
             bottom_left_corner,
             P(bottom_left_corner.x, top_right_corner.y),
@@ -108,7 +123,7 @@ class ConsoleCanvas(object):
             bottom_left_corner
         ]
 
-        last_point = None
+        last_point = bottom_left_corner
         for idx, point in enumerate(path):
             if idx != 0:
                 self.line(last_point, point, paint=paint, character=" " if blank else None)
@@ -122,17 +137,18 @@ class ConsoleCanvas(object):
             r = io.StringIO()
             for col_idx, color_item in enumerate(color_row):
                 d = self.bitmap._bitmap[row_idx][col_idx]
+                d = u'{}'.format(d)
                 if d and d != " ":
                     if color_item:
                         if color_item != last_color:
-                            r.write(color_item)
+                            r.write(u'{}'.format(color_item))
                         last_color = color_item
                     elif last_color:
-                        r.write(Fore.RESET)
+                        r.write(u'{}'.format(Fore.RESET))
                     r.write(d if d is not hidden else " ")
                     if not color_item:
                         if last_color:
-                            r.write(Fore.RESET)
+                            r.write(u'{}'.format(Fore.RESET))
                         last_color = None
                 else:
                     r.write(d)
@@ -169,7 +185,7 @@ def plot(url, data, width, height):
         if bar_height == 0:
             bar_height = 1
 
-        def _paint(point: P):
+        def _paint(point):
             y = point.y
             if y <= green_zone_idx:
                 return Fore.GREEN
