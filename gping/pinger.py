@@ -15,7 +15,10 @@ except Exception:
     winterm = None
 import sys
 
-from termsize import get_terminal_size
+try:
+   from gping.termsize import get_terminal_size
+except ImportError:
+   from termsize import get_terminal_size
 
 init()
 windows_re = re.compile('.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?(\\d+)', re.IGNORECASE | re.DOTALL)
