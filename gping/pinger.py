@@ -240,8 +240,8 @@ def plot(url, data, width, height):
 
             for idx, stat in enumerate(stats_box):
                 from_stat = midpoint.x - round(max_stats_len / 2)
-                to_stat = from_ + len(stat)
-                canvas.horizontal_line(stat, midpoint.y + idx, from_ ,to )
+                to_stat = from_stat + len(stat)
+                canvas.horizontal_line(stat, midpoint.y + idx, from_stat ,to_stat )
 
             #adding the url to the top
             from_url = midpoint.x - round(len(url) / 2)
