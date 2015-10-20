@@ -16,9 +16,10 @@ except Exception:
 import sys
 
 try:
-   from gping.termsize import get_terminal_size
+    from gping.termsize import get_terminal_size
 except ImportError:
-   from termsize import get_terminal_size
+    #python 2 compatibility
+    from termsize import get_terminal_size
 
 init()
 windows_re = re.compile('.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?(\\d+)', re.IGNORECASE | re.DOTALL)
@@ -90,10 +91,11 @@ class ConsoleCanvas(object):
             self.colors[point] = paint(point) if paint else ""
 
     # Yes, these two methods could be refactored :/
-    def horizontal_line(self, data, row, from_, to=None, paint=None):
-
+    def horizontal_line(self, data, row, from_, to, paint=None):
+        from_ = int(from_)
+        to = int(to)
         data_iter = iter(data)
-        for idx, i in enumerate(range(int(from_), ((int(to) if to else None) or int(from_) + len(data)))):
+        for i in range(from_,to):
             p = P(i, row)
             self.point(p, next(data_iter), paint)
 
@@ -118,6 +120,7 @@ class ConsoleCanvas(object):
             raise RuntimeError("Diagonal lines are not supported")
 
     def box(self, bottom_left_corner, top_right_corner, paint=None, blank=False):
+        ''' creates the visual frame/box in which we place the graph '''
         path = [
             bottom_left_corner,
             P(bottom_left_corner.x, top_right_corner.y),
@@ -126,11 +129,12 @@ class ConsoleCanvas(object):
             bottom_left_corner
         ]
 
+        #use the bottom left corner as the starting point
         last_point = bottom_left_corner
         for idx, point in enumerate(path):
+            #skipping the first item because we use it as starting point
             if idx != 0:
                 self.line(last_point, point, paint=paint, character=" " if blank else None)
-
             last_point = point
 
     def process_colors(self):
@@ -211,6 +215,8 @@ def plot(url, data, width, height):
         ]
         max_stats_len = max(len(s) for s in stats_box)
 
+        #when does this get to execution ?
+        #from what it seems this doesnt get in
         if False:
             for idx, stat in enumerate(stats_box):
                 canvas.horizontal_line(stat, height - 2 - idx, width - max_stats_len - 2)
@@ -220,6 +226,7 @@ def plot(url, data, width, height):
                 P(width - 1, height - 1)
             )
         else:
+            #creating the box for the ping information in the middle
             midpoint = P(
                 round(width / 2),
                 round(height / 2)
@@ -231,10 +238,15 @@ def plot(url, data, width, height):
                 blank=True
             )
 
-            canvas.horizontal_line(url, height, midpoint.x - round(len(url) / 2))
-
             for idx, stat in enumerate(stats_box):
-                canvas.horizontal_line(stat, midpoint.y + idx, midpoint.x - round(max_stats_len / 2))
+                from_stat = midpoint.x - round(max_stats_len / 2)
+                to_stat = from_stat + len(stat)
+                canvas.horizontal_line(stat, midpoint.y + idx, from_stat ,to_stat )
+
+            #adding the url to the top
+            from_url = midpoint.x - round(len(url) / 2)
+            to_url = from_url + len(url)
+            canvas.horizontal_line(url, height, from_url ,to_url)
 
     return canvas
 
