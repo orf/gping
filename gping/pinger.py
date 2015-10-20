@@ -3,7 +3,6 @@ import subprocess
 import re
 import collections
 import itertools
-import statistics
 import platform
 import io
 
@@ -206,7 +205,7 @@ def plot(url, data, width, height):
         )
 
     if stats_data:
-        average = statistics.mean(stats_data)
+        average = sum(stats_data)/len(stats_data)
         stats_box = [
             "Avg: {:6.0f}".format(average),
             "Min: {:6.0f}".format(min(d for d in stats_data if d)),  # Filter None values
