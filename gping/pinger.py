@@ -15,7 +15,10 @@ except Exception:
     winterm = None
 import sys
 
-from termsize import get_terminal_size
+try:
+   from gping.termsize import get_terminal_size
+except ImportError:
+   from termsize import get_terminal_size
 
 init()
 windows_re = re.compile('.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?(\\d+)', re.IGNORECASE | re.DOTALL)
@@ -261,7 +264,7 @@ def _darwin(url):
         if line.startswith("64 bytes from"):
             yield round(float(darwin_re.search(line).group(5)))
         elif line.startswith("Request timeout"):
-            yield -1.0;
+            yield None
 
 
 def _simulate(url):
