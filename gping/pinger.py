@@ -214,38 +214,36 @@ def plot(url, data, width, height):
         ]
         max_stats_len = max(len(s) for s in stats_box)
 
-        #when does this get to execution ?
-        #from what it seems this doesnt get in
-        if False:
-            for idx, stat in enumerate(stats_box):
-                canvas.horizontal_line(stat, height - 2 - idx, width - max_stats_len - 2)
+        #this part was used to place the info box in the upper right corner
+        #if False:
+        #    for idx, stat in enumerate(stats_box):
+        #        canvas.horizontal_line(stat, height - 2 - idx, width - max_stats_len - 2)
 
-            canvas.box(
-                P(width - max_stats_len - len(stats_box), height - 2 - len(stats_box)),
-                P(width - 1, height - 1)
-            )
-        else:
-            #creating the box for the ping information in the middle
-            midpoint = P(
-                round(width / 2),
-                round(height / 2)
-            )
+        #    canvas.box(
+        #        P(width - max_stats_len - len(stats_box), height - 2 - len(stats_box)),
+        #        P(width - 1, height - 1)
+        #    )
+        #creating the box for the ping information in the middle
+        midpoint = P(
+            round(width / 2),
+            round(height / 2)
+        )
 
-            canvas.box(
-                P(midpoint.x - round(max_stats_len / 2) - 1, midpoint.y + len(stats_box)),
-                P(midpoint.x + round(max_stats_len / 2) - 1, midpoint.y - 1),
-                blank=True
-            )
+        canvas.box(
+            P(midpoint.x - round(max_stats_len / 2) - 1, midpoint.y + len(stats_box)),
+            P(midpoint.x + round(max_stats_len / 2) - 1, midpoint.y - 1),
+            blank=True
+        )
 
-            for idx, stat in enumerate(stats_box):
-                from_stat = midpoint.x - round(max_stats_len / 2)
-                to_stat = from_stat + len(stat)
-                canvas.horizontal_line(stat, midpoint.y + idx, from_stat ,to_stat )
+        for idx, stat in enumerate(stats_box):
+            from_stat = midpoint.x - round(max_stats_len / 2)
+            to_stat = from_stat + len(stat)
+            canvas.horizontal_line(stat, midpoint.y + idx, from_stat ,to_stat )
 
-            #adding the url to the top
-            from_url = midpoint.x - round(len(url) / 2)
-            to_url = from_url + len(url)
-            canvas.horizontal_line(url, height, from_url ,to_url)
+        #adding the url to the top
+        from_url = midpoint.x - round(len(url) / 2)
+        to_url = from_url + len(url)
+        canvas.horizontal_line(url, height, from_url ,to_url)
 
     return canvas
 
