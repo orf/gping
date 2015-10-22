@@ -4,7 +4,7 @@ Ping, but with a graph
 ![](/doc/readme_screencast.gif)
 
 ## Install and run
-Created/tested with Python 3.4, should run on 2.7 (will require the `statistics` module though).
+Created/tested with Python 3.4 and 2.7.
 
 `pip3 install pinggraph`
 
