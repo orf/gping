@@ -43,7 +43,7 @@ hidden = object()
 
 class Bitmap(object):
     def __init__(self, width, height, default=" "):
-        ''' the pane on which we are oing to draw'''
+        ''' the pane on which we are going to draw'''
         self.width = width
         self.height = height
         self._bitmap = [
