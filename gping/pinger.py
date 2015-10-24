@@ -50,17 +50,6 @@ class Bitmap(object):
             [default for _ in range(width + 1)]
             for _ in range(height + 1)
             ]
-    def __getitem__(self, point):
-        ''' we get the value at the given point
-            raise an error if the passed item is not Point object or Integer object
-        '''
-        if isinstance(point, P):
-            return self._bitmap[self.height - idx.y][idx.x]
-        #
-        elif not isinstance(point, int):
-            raise RuntimeError("Can only index Bitmaps using an integer")
-
-        return self._bitmap[self.height - idx]
 
     def __setitem__(self, point, value):
         ''' we set the value at the given point 
