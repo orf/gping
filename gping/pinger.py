@@ -134,7 +134,10 @@ def plot(width, height, data, host):
         return canvas
 
     average_ping = sum(filtered_data) / len(filtered_data)
-    max_ping = min(max(filtered_data), average_ping * 2)
+    max_ping = max(filtered_data)
+
+    if max_ping > (average_ping * 2):
+        max_ping *= 0.75
 
     # Scale the chart.
     min_scaled, max_scaled = 0, height - 4
