@@ -6,6 +6,7 @@ import sys
 import platform
 import re
 from itertools import islice
+import threading
 
 from colorama import Fore, init
 init()
@@ -15,10 +16,10 @@ buff = deque(maxlen=400)
 Point = namedtuple("Point", "x y")
 
 try:
-    from gping.termsize import get_terminal_size
+    from gping.utils import get_terminal_size, getch
 except ImportError:
     # python 2 compatibility
-    from termsize import get_terminal_size
+    from utils import get_terminal_size, getch
 
 try:
     from colorama.ansitowin32 import winterm
@@ -311,7 +312,21 @@ def _run():
     else:
         it = linux_ping
 
+    def _reset_thread():
+        while True:
+            x = getch()
+            # This seems to trap ctrl+c :(
+            if x in ("c", " "):
+                should_clear.set()
+
+    should_clear = threading.Event()
+    thread = threading.Thread(target=_reset_thread, daemon=True)
+    thread.start()
+
     for line in it(options):
+        if should_clear.is_set():
+            buff.clear()
+
         buff.appendleft(line)
 
         width, height = get_terminal_size()

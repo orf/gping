@@ -4,8 +4,35 @@ import shlex
 import struct
 import platform
 import subprocess
- 
- 
+
+
+def _find_getch():
+    try:
+        import termios
+    except ImportError:
+        # Non-POSIX. Return msvcrt's (Windows') getch.
+        import msvcrt
+        return msvcrt.getch
+
+    # POSIX system. Create and return a getch that manipulates the tty.
+    import sys, tty
+
+    def _getch():
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
+
+    return _getch
+
+
+getch = _find_getch()
+
+
 def get_terminal_size():
     """ getTerminalSize()
      - get width and height of console
@@ -23,10 +50,10 @@ def get_terminal_size():
     if current_os in ['Linux', 'Darwin'] or current_os.startswith('CYGWIN'):
         tuple_xy = _get_terminal_size_linux()
     if tuple_xy is None:
-        tuple_xy = (80, 25)      # default value
+        tuple_xy = (80, 25)  # default value
     return tuple_xy
- 
- 
+
+
 def _get_terminal_size_windows():
     try:
         from ctypes import windll, create_string_buffer
@@ -45,7 +72,7 @@ def _get_terminal_size_windows():
             return sizex, sizey
     except Exception:
         pass
- 
+
 
 def _get_terminal_size_tput():
     # get terminal width
@@ -56,8 +83,8 @@ def _get_terminal_size_tput():
         return (cols, rows)
     except Exception:
         pass
- 
- 
+
+
 def _get_terminal_size_linux():
     def ioctl_GWINSZ(fd):
         try:
@@ -68,6 +95,7 @@ def _get_terminal_size_linux():
             return cr
         except Exception:
             pass
+
     cr = ioctl_GWINSZ(0) or ioctl_GWINSZ(1) or ioctl_GWINSZ(2)
     if not cr:
         try:
@@ -82,7 +110,8 @@ def _get_terminal_size_linux():
         except Exception:
             return None
     return int(cr[1]), int(cr[0])
- 
+
+
 if __name__ == "__main__":
     sizex, sizey = get_terminal_size()
     print("Width: {}, Height: {}".format(sizex, sizey))
