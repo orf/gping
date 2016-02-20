@@ -1,3 +1,4 @@
+# coding=utf8
 import functools
 import itertools
 import platform
@@ -9,7 +10,7 @@ from itertools import islice
 
 from colorama import Fore, init
 
-__version__ = "0.0.12"
+__version__ = "0.0.13"
 
 init()
 
@@ -50,7 +51,7 @@ class Canvas(object):
         else:
             data = (value, None)
 
-        self.data[-y][x] = data
+        self.data[int(-y)][int(x)] = data
 
     def horizontal_line(self, data, row, from_, to, paint=None):
         if len(data) == 1:
@@ -169,7 +170,7 @@ def plot(width, height, data, host):
                 return Fore.RED  # Danger zone
 
         canvas.vertical_line(
-            "█", column + 2, 2, 2 + bar_height, paint=_paint
+            u"█", column + 2, 2, 2 + bar_height, paint=_paint
         )
 
     stats_box = [

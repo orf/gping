@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='pinggraph',
-    version='0.0.12',
+    version='0.0.13',
     packages=['gping'],
     url='https://github.com/orf/gping',
     license='',
