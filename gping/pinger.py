@@ -9,7 +9,7 @@ from itertools import islice
 
 from colorama import Fore, init
 
-__version__ = "0.0.11"
+__version__ = "0.0.12"
 
 init()
 
