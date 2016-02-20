@@ -1,13 +1,16 @@
-from collections import namedtuple, deque
-import itertools
-import subprocess
 import functools
-import sys
+import itertools
 import platform
 import re
+import subprocess
+import sys
+from collections import namedtuple, deque
 from itertools import islice
 
 from colorama import Fore, init
+
+__version__ = "0.0.11"
+
 init()
 
 buff = deque(maxlen=400)
@@ -221,13 +224,21 @@ darwin_re = re.compile(r'''
 
 
 # Simple ping decorator. Takes a list of default arguments to be passed to ping (used in the windows pinger)
-def pinger(default_options=None):
+def pinger(default_options=None, help="--help"):
     # We return the inner decorator (a bit verbose I know)
     def _wrapper(func):
         # Make the wrapped function...
         @functools.wraps(func)
-        def _inner(*args):
-            args = ["ping"] + (default_options or []) + list(arg[0] for arg in args)
+        def _inner(args):
+            if any(arg in ("--help", "/?") for arg in args):
+                ping_help_text = subprocess.getoutput("ping {0}".format(help))
+                print(Fore.GREEN + "gping {version}. Pass any parameters you would normally to ping".format(
+                    version=__version__))
+                print("Ping help:")
+                print(Fore.RESET + ping_help_text)
+                return
+
+            args = ["ping"] + (default_options or []) + list(args)
             ping = subprocess.Popen(args, stdout=subprocess.PIPE)
             # Store the last 5 lines of output in case ping unexpectedly quits
             last_5 = deque(maxlen=5)
@@ -252,7 +263,7 @@ def pinger(default_options=None):
     return _wrapper
 
 
-@pinger(["-t"])
+@pinger(["-t"], help="/h")
 def windows_ping(line):
     if line.startswith("Reply from"):
         return int(windows_re.search(line).group(1))
