@@ -146,18 +146,28 @@ def plot(width, height, data, host):
     # Scale the chart.
     min_scaled, max_scaled = 0, height - 4
 
-    yellow_zone_idx = round(max_scaled * (100 / max_ping))
-    green_zone_idx = round(max_scaled * (50 / max_ping))
+    try:
+        yellow_zone_idx = round(max_scaled * (100 / max_ping))
+        green_zone_idx = round(max_scaled * (50 / max_ping))
+    except ZeroDivisionError:
+        # It is 2 so the bottom block becomes green and not red
+        yellow_zone_idx = 2
+        green_zone_idx = 2
 
     for column, datum in enumerate(data_slice):
         if datum == -1:
             # If it's a timeout then do a red questionmark
             canvas[column + 2, 2] = ("?", Fore.RED)
             continue
-
-        # What percentage of the max_ping are we? 0 -> 1
-        percent = min(datum / max_ping, 100) if datum < max_ping else 1
-        bar_height = round(max_scaled * percent)
+        
+        # Only draw a bar if the max_ping has been more than 0
+        if max_ping > 0:
+           # What percentage of the max_ping are we? 0 -> 1
+           percent = min(datum / max_ping, 100) if datum < max_ping else 1
+           bar_height = round(max_scaled * percent)
+        else:
+           percent = 0
+           bar_height = 0
 
         # Our paint callback, we check if the y value of the point is in any of our zones,
         # if it is paint the appropriate color.
