@@ -34,11 +34,8 @@ class Canvas(object):
     def __init__(self, width, height):
         # Each item in each row is a tuple, the first element is the single character that will be printed
         # and the second is the characters color.
-        self.data = [
-            [(" ", None) for i in range(width)]
-            for i in range(height)
-            ]
-
+        self.data = [ [(" ", None) for i in range(width)] for i in range(height - 1) ]
+        
     def __setitem__(self, key, value):
         x, y = key
 
@@ -333,6 +330,10 @@ def _run():
     else:
         it = linux_ping
 
+    width, height = get_terminal_size()
+    for i in range(height):
+        print(" ")
+
     for line in it(options):
         buff.appendleft(line)
 
@@ -342,6 +343,8 @@ def _run():
 
         if winterm and system == "Windows":
             winterm.set_cursor_position((1, 1))
+        if system == "Darwin":
+            print("\033[%sA" % height)
         else:
             print(chr(27) + "[2J")
 
