@@ -9,7 +9,7 @@ confinement: devmode
 
 apps:
   gping:
-    command: gping/pinger
+    command: gping/pinger.py
 
 parts:
   gping:
