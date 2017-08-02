@@ -1,0 +1,18 @@
+name: gping
+version: git
+summary: Ping, but with a graphj
+description: |
+  gping gives ping a nice graph in your terminal.
+
+grade: devel
+confinement: devmode
+
+apps:
+  gping:
+    command: gping/pinger
+
+parts:
+  gping:
+    plugin: python
+    python-version: python3
+    source: .
