@@ -1,4 +1,5 @@
-# coding=utf8
+#!/usr/bin/env python
+
 import functools
 import itertools
 import platform
