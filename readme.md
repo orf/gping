@@ -4,6 +4,15 @@ Ping, but with a graph
 ![](/doc/readme_screencast.gif)
 
 ## Install and run
+
+If you're using Linux you can install gping using `snap`:
+
+`snap install gping && snap connect gping:network-observe`
+
+Then just execute as usual using the `gping` command.
+
+### Using pip
+
 Created/tested with Python 3.4 and 2.7.
 
 `pip3 install pinggraph`
