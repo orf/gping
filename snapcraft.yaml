@@ -20,3 +20,5 @@ parts:
     source-depth: 1
     prime:
       - bin/ping
+    stage-packages:
+      - iputils-ping
