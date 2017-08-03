@@ -10,7 +10,7 @@ confinement: strict
 apps:
   gping:
     command: env LC_ALL=C.UTF-8 gping
-    plugs: [network]
+    plugs: [network, network-observe]
 
 parts:
   gping:
@@ -18,5 +18,3 @@ parts:
     python-version: python3
     source: .
     source-depth: 1
-    stage-packages:
-      - iputils-ping
