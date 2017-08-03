@@ -18,7 +18,5 @@ parts:
     python-version: python3
     source: https://github.com/orf/gping.git
     source-depth: 1
-    prime:
-      - bin/ping
     stage-packages:
       - iputils-ping
