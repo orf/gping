@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='pinggraph',
-    version='0.0.13',
+    version='1.0',
     packages=['gping'],
     url='https://github.com/orf/gping',
     license='',
@@ -15,5 +15,9 @@ setup(
         "console_scripts": [
             "gping=gping.pinger:run"
         ]
-    }
+    },
+    classifiers=[
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 2',
+    ])
 )
