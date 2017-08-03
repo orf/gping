@@ -8,7 +8,7 @@ Created/tested with Python 3.4 and 2.7.
 
 `pip3 install pinggraph`
 
-Tested on Windows and Ubuntu, should run on OS X as well. After installation just run:
+Tested on Windows, Ubuntu and OS X. After installation just run:
 
 `gping [yourhost]`
 
