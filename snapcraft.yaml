@@ -1,6 +1,6 @@
 name: gping
 version: git
-summary: Ping, but with a graphj
+summary: Ping, but with a graph
 description: |
   gping gives ping a nice graph in your terminal.
 
