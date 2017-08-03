@@ -16,7 +16,7 @@ parts:
   gping:
     plugin: python
     python-version: python3
-    source: .
+    source: https://github.com/orf/gping.git
     source-depth: 1
     prime:
       - bin/ping
