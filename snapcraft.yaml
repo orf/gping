@@ -19,4 +19,4 @@ parts:
     source: .
     source-depth: 1
     prime:
-      - /bin/ping
+      - bin/ping
