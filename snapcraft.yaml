@@ -17,3 +17,6 @@ parts:
     plugin: python
     python-version: python3
     source: .
+    source-depth: 1
+    prime:
+      - /bin/ping
