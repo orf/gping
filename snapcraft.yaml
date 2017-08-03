@@ -4,8 +4,8 @@ summary: Ping, but with a graphj
 description: |
   gping gives ping a nice graph in your terminal.
 
-grade: devel
-confinement: devmode
+grade: stable
+confinement: strict
 
 apps:
   gping:
