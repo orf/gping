@@ -3,6 +3,8 @@ Ping, but with a graph
 
 ![](/doc/readme_screencast.gif)
 
+[![Snap Status](https://build.snapcraft.io/badge/orf/gping.svg)](https://build.snapcraft.io/user/orf/gping)
+
 ## Install and run
 Created/tested with Python 3.4 and 2.7.
 
