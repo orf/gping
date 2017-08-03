@@ -10,7 +10,6 @@ confinement: devmode
 apps:
   gping:
     command: env LC_ALL=C.UTF-8 gping
-    command: gping
     plugs: [network]
 
 parts:
