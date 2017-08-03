@@ -16,7 +16,7 @@ parts:
   gping:
     plugin: python
     python-version: python3
-    source: https://github.com/orf/gping.git
+    source: .
     source-depth: 1
     stage-packages:
       - iputils-ping
