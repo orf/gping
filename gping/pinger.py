@@ -249,7 +249,12 @@ def pinger(default_options=None, help="--help"):
                 return
 
             args = ["ping"] + (default_options or []) + list(args)
-            ping = subprocess.Popen(args, stdout=subprocess.PIPE)
+            try:
+                ping = subprocess.Popen(args, stdout=subprocess.PIPE)
+            except PermissionError:
+                print("Error running 'ping'. If you are using snap run snap connect gping:network-observe")
+                return
+
             # Store the last 5 lines of output in case ping unexpectedly quits
             last_5 = deque(maxlen=5)
             while True:
