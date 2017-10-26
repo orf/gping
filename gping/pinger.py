@@ -9,6 +9,7 @@ import subprocess
 import sys
 from collections import namedtuple, deque
 from itertools import islice
+import signal
 
 from colorama import Fore, init
 
@@ -37,7 +38,7 @@ class Canvas(object):
         # Each item in each row is a tuple, the first element is the single character that will be printed
         # and the second is the characters color.
         self.data = [ [(" ", None) for i in range(width)] for i in range(height - 1) ]
-        
+
     def __setitem__(self, key, value):
         x, y = key
 
@@ -158,7 +159,7 @@ def plot(width, height, data, host):
             # If it's a timeout then do a red questionmark
             canvas[column + 2, 2] = ("?", Fore.RED)
             continue
-        
+
         # Only draw a bar if the max_ping has been more than 0
         if max_ping > 0:
            # What percentage of the max_ping are we? 0 -> 1
@@ -320,6 +321,28 @@ def run():
     except KeyboardInterrupt:
         pass
 
+def draw(system, host):
+    width, height = get_terminal_size()
+
+    plotted = plot(width, height, buff, host)
+
+    if winterm and system == "Windows":
+        winterm.set_cursor_position((1, 1))
+    if system == "Darwin":
+        print("\033[%sA" % height)
+    else:
+        print(chr(27) + "[2J")
+
+    print("\n".join(plotted.lines))
+
+def clear():
+    width, height = get_terminal_size()
+    for i in range(height):
+        print(" ")
+
+def on_resize(system, host):
+    clear()
+    draw(system, host)
 
 def _run():
     if len(sys.argv) == 1:
@@ -337,25 +360,13 @@ def _run():
     else:
         it = linux_ping
 
-    width, height = get_terminal_size()
-    for i in range(height):
-        print(" ")
+    if system != "Windows":
+        signal.signal(signal.SIGWINCH, lambda _1, _2: on_resize(system, host))
 
+    clear()
     for line in it(options):
         buff.appendleft(line)
-
-        width, height = get_terminal_size()
-
-        plotted = plot(width, height, buff, host)
-
-        if winterm and system == "Windows":
-            winterm.set_cursor_position((1, 1))
-        if system == "Darwin":
-            print("\033[%sA" % height)
-        else:
-            print(chr(27) + "[2J")
-
-        print("\n".join(plotted.lines))
+        draw(system, host)
 
 
 if __name__ == "__main__":
