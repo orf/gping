@@ -3,6 +3,10 @@ Ping, but with a graph
 
 ![](/doc/readme_screencast.gif)
 
+<a target='_blank' rel='nofollow' href='https://app.codesponsor.io/link/hZfyCKcjPR9bn6Z1vLn1WyHZ/orf/gping'>
+  <img alt='Sponsor' width='888' height='68' src='https://app.codesponsor.io/embed/hZfyCKcjPR9bn6Z1vLn1WyHZ/orf/gping.svg' />
+</a>
+
 ## Install and run
 
 If you're using Linux you can install gping using `snap`:
