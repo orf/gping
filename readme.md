@@ -11,7 +11,7 @@ Ping, but with a graph
 
 If you're using Linux you can install gping using `snap`:
 
-`snap install gping && snap connect gping:network-observe`
+`sudo snap install gping && sudo snap connect gping:network-observe`
 
 Then just execute as usual using the `gping` command.
 
