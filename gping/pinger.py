@@ -342,18 +342,43 @@ def clear():
     for i in range(height):
         print(" ")
 
+def extract_host(system, argv):
+    """
+    Try to ignore all option arguments and find the last positional argument that remains.
+    """
+    if system == "Windows":
+        return None
+    elif system == "Darwin":
+        no_arg_opts = "hAaCDdfnoQqRrv"
+    else:
+        no_arg_opts = "haAbBdDfhLnOqrRUvV46"
+    pos_args = []
+    remaining = argv.copy()
+    while remaining:
+        arg = remaining.pop(0)
+        if arg == "--":
+            pos_args += remaining
+            break
+        elif arg.startswith("--"):
+            continue
+        elif arg[0] == "-":
+            if len(arg) > 1 and arg[1] in no_arg_opts:
+                continue
+            elif len(arg) == 2:
+                # Consume the next arg as well (e.g. "-t 5")
+                remaining.pop(0)
+            else:
+                # This is an option arg (e.g. "-t5") with no space
+                continue
+        else:
+            pos_args.append(arg)
+    return pos_args[-1] if pos_args else None
+
 def on_resize(system, host):
     clear()
     draw(system, host)
 
 def _run():
-    if len(sys.argv) == 1:
-        options = ["google.com"]
-        host = options[0]
-    else:
-        options = sys.argv[1:]
-        host = ""
-
     system = platform.system()
     if system == "Windows":
         it = windows_ping
@@ -361,6 +386,14 @@ def _run():
         it = darwin_ping
     else:
         it = linux_ping
+
+    if len(sys.argv) == 1:
+        options = ["google.com"]
+        host = options[0]
+    else:
+        options = sys.argv[1:]
+        host = extract_host(system, sys.argv[1:])
+
 
     if system != "Windows":
         signal.signal(signal.SIGWINCH, lambda _1, _2: on_resize(system, host))
