@@ -435,7 +435,7 @@ def _run():
         plot = CursesPlot(system, host)
     except Exception:
         plot = TextPlot(system, host)
-    with plot as plot:
+    with plot:
         if system != "Windows":
             signal.signal(signal.SIGWINCH, lambda _1, _2: plot.on_resize())
 
