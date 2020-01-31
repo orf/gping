@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding=utf8
 
+import curses
 import functools
 import itertools
 import platform
@@ -8,6 +9,7 @@ import re
 import subprocess
 import sys
 from collections import namedtuple, deque
+from contextlib import ContextDecorator
 from itertools import islice
 import signal
 
@@ -16,8 +18,6 @@ from colorama import Fore, init
 __version__ = "0.0.13"
 
 init()
-
-buff = deque(maxlen=400)
 
 Point = namedtuple("Point", "x y")
 
@@ -102,9 +102,150 @@ class Canvas(object):
                 self.line(last_point, point, paint=paint, character=" " if blank else None)
             last_point = point
 
-    @property
-    def lines(self):
-        for line in self.data:
+
+class BasePlot(ContextDecorator):
+    def __init__(self, system, host):
+        self.system = system
+        self.host = host
+        self.buff = deque(maxlen=400)
+
+    def create_canvas(self, width, height):
+        # We space for a newline after each line, so restrict the hight/width a bit
+        width, height = width - 1, height - 1  # Our work area is slightly smaller
+        canvas = Canvas(width, height)
+        # Draw a box around the edges of the screen, one character in.
+        canvas.box(
+            Point(1, 1), Point(width - 1, height - 1)
+        )
+        # We use islice to slice the data because we can't do a ranged slice on a dequeue :(
+        data_slice = list(islice(self.buff, 0, width - 3))
+
+        # Filter the -1's (timeouts) from the data so it doesn't impact avg, sum etc.
+        filtered_data = [d for d in self.buff if d != -1]
+        if not filtered_data:
+            return canvas
+
+        average_ping = sum(filtered_data) / len(filtered_data)
+        max_ping = max(filtered_data)
+
+        if max_ping > (average_ping * 2):
+            max_ping *= 0.75
+
+        # Scale the chart.
+        min_scaled, max_scaled = 0, height - 4
+
+        try:
+            yellow_zone_idx = round(max_scaled * (100 / max_ping))
+            green_zone_idx = round(max_scaled * (50 / max_ping))
+        except ZeroDivisionError:
+            # It is 2 so the bottom block becomes green and not red
+            yellow_zone_idx = 2
+            green_zone_idx = 2
+
+        for column, datum in enumerate(data_slice):
+            if datum == -1:
+                # If it's a timeout then do a red questionmark
+                canvas[column + 2, 2] = ("?", Fore.RED)
+                continue
+
+            # Only draw a bar if the max_ping has been more than 0
+            if max_ping > 0:
+               # What percentage of the max_ping are we? 0 -> 1
+               percent = min(datum / max_ping, 100) if datum < max_ping else 1
+               bar_height = round(max_scaled * percent)
+            else:
+               percent = 0
+               bar_height = 0
+
+            # Our paint callback, we check if the y value of the point is in any of our zones,
+            # if it is paint the appropriate color.
+            def _paint(x, y):
+                if y <= green_zone_idx:
+                    return Fore.GREEN
+                elif y <= yellow_zone_idx:
+                    return Fore.YELLOW
+                else:
+                    return Fore.RED  # Danger zone
+
+            canvas.vertical_line(
+                u"█", column + 2, 2, 2 + bar_height, paint=_paint
+            )
+
+        stats_box = [
+            "Cur: {:6.0f}".format(filtered_data[0]),
+            "Max: {:6.0f}".format(max(filtered_data)),
+            "Min: {:6.0f}".format(min(filtered_data)),  # Filter None values
+            "Avg: {:6.0f}".format(average_ping)
+        ]
+        # creating the box for the ping information in the middle
+        midpoint = Point(
+            round(width / 2),
+            round(height / 2)
+        )
+        max_stats_len = max(len(s) for s in stats_box)
+        # Draw a box around the outside of the stats box. We do this to stop the bars from touching the text,
+        # it looks weird. We need a blank area around it.
+        stats_text = min(height - 2, midpoint.y + len(stats_box) / 2)
+        canvas.box(
+            Point(midpoint.x - round(max_stats_len / 2) - 1, stats_text + 1),
+            Point(midpoint.x + round(max_stats_len / 2) - 1, stats_text - len(stats_box)),
+            blank=True
+        )
+        # Paint each of the statistics lines
+        for idx, stat in enumerate(stats_box):
+            from_stat = midpoint.x - round(max_stats_len / 2)
+            to_stat = from_stat + len(stat)
+            if stats_text - idx >= 0:
+                canvas.horizontal_line(stat, stats_text - idx, from_stat, to_stat)
+
+        # adding the url to the top
+        if self.host:
+            host = " {} ".format(self.host)
+            from_url = midpoint.x - round(len(host) / 2)
+            to_url = from_url + len(host)
+            canvas.horizontal_line(host, height - 1, from_url, to_url)
+
+        return canvas
+
+    def draw(self):
+        raise NotImplemented
+
+    def clear(self):
+        raise NotImplemented
+
+    def on_resize(self):
+        self.clear()
+        self.draw()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        pass
+
+
+class TextPlot(BasePlot):
+    def draw(self):
+        width, height = get_terminal_size()
+
+        canvas = self.create_canvas(width, height)
+
+        if winterm and self.system == "Windows":
+            winterm.set_cursor_position((1, 1))
+        if self.system == "Darwin":
+            print("\033[%sA" % height)
+        else:
+            print(chr(27) + "[2J")
+
+        print("\n".join(self.lines(canvas)))
+
+    def clear(self):
+        width, height = get_terminal_size()
+        for i in range(height):
+            print(" ")
+
+    def lines(self, canvas):
+        for line in canvas.data:
             data = []
             current_color = None
             # Output lines but keep track of color changes. Needed to stop colors bleeding over to other characters.
@@ -121,103 +262,53 @@ class Canvas(object):
             yield "".join(data)
 
 
-def plot(width, height, data, host):
-    # We space for a newline after each line, so restrict the hight/width a bit
-    width, height = width - 1, height - 1  # Our work area is slightly smaller
-    canvas = Canvas(width, height)
-    # Draw a box around the edges of the screen, one character in.
-    canvas.box(
-        Point(1, 1), Point(width - 1, height - 1)
-    )
-    # We use islice to slice the data because we can't do a ranged slice on a dequeue :(
-    data_slice = list(islice(data, 0, width - 3))
+class CursesPlot(BasePlot):
+    def __init__(self, system, host):
+        super(CursesPlot, self).__init__(system, host)
+        self.stdscr = curses.initscr()
+        self.stdscr.keypad(1)
+        curses.noecho()
+        curses.cbreak()
+        curses.curs_set(0)
+        curses.start_color()
+        curses.use_default_colors()
+        for i in range(0, curses.COLORS):
+            curses.init_pair(i, i, -1)
 
-    # Filter the -1's (timeouts) from the data so it doesn't impact avg, sum etc.
-    filtered_data = [d for d in data if d != -1]
-    if not filtered_data:
-        return canvas
+    def __exit__(self, *exc):
+        if self.stdscr:
+            self.stdscr.keypad(0)
+            curses.echo()
+            curses.nocbreak()
+            curses.endwin()
+            self.stdscr = None
 
-    average_ping = sum(filtered_data) / len(filtered_data)
-    max_ping = max(filtered_data)
+    def draw(self):
+        height, width = self.stdscr.getmaxyx()
 
-    if max_ping > (average_ping * 2):
-        max_ping *= 0.75
+        canvas = self.create_canvas(width + 1, height + 2)
 
-    # Scale the chart.
-    min_scaled, max_scaled = 0, height - 4
+        current_color = None
+        for top, line in enumerate(canvas.data):
+            for left, pair in enumerate(line):
+                char, color = pair
+                if color != current_color and char != " ":
+                    current_color = color
+                curses_color = {
+                    None: curses.color_pair(7),
+                    Fore.RESET: curses.color_pair(0),
+                    Fore.RED: curses.color_pair(1),
+                    Fore.GREEN: curses.color_pair(2),
+                    Fore.YELLOW: curses.color_pair(3),
+                }[current_color]
+                try:
+                    self.stdscr.addstr(top, left, char, curses_color)
+                except:
+                    pass
+        self.stdscr.refresh()
 
-    try:
-        yellow_zone_idx = round(max_scaled * (100 / max_ping))
-        green_zone_idx = round(max_scaled * (50 / max_ping))
-    except ZeroDivisionError:
-        # It is 2 so the bottom block becomes green and not red
-        yellow_zone_idx = 2
-        green_zone_idx = 2
-
-    for column, datum in enumerate(data_slice):
-        if datum == -1:
-            # If it's a timeout then do a red questionmark
-            canvas[column + 2, 2] = ("?", Fore.RED)
-            continue
-
-        # Only draw a bar if the max_ping has been more than 0
-        if max_ping > 0:
-           # What percentage of the max_ping are we? 0 -> 1
-           percent = min(datum / max_ping, 100) if datum < max_ping else 1
-           bar_height = round(max_scaled * percent)
-        else:
-           percent = 0
-           bar_height = 0
-
-        # Our paint callback, we check if the y value of the point is in any of our zones,
-        # if it is paint the appropriate color.
-        def _paint(x, y):
-            if y <= green_zone_idx:
-                return Fore.GREEN
-            elif y <= yellow_zone_idx:
-                return Fore.YELLOW
-            else:
-                return Fore.RED  # Danger zone
-
-        canvas.vertical_line(
-            u"█", column + 2, 2, 2 + bar_height, paint=_paint
-        )
-
-    stats_box = [
-        "Cur: {:6.0f}".format(filtered_data[0]),
-        "Max: {:6.0f}".format(max(filtered_data)),
-        "Min: {:6.0f}".format(min(filtered_data)),  # Filter None values
-        "Avg: {:6.0f}".format(average_ping)
-    ]
-    # creating the box for the ping information in the middle
-    midpoint = Point(
-        round(width / 2),
-        round(height / 2)
-    )
-    max_stats_len = max(len(s) for s in stats_box)
-    # Draw a box around the outside of the stats box. We do this to stop the bars from touching the text,
-    # it looks weird. We need a blank area around it.
-    stats_text = min(height - 2, midpoint.y + len(stats_box) / 2)
-    canvas.box(
-        Point(midpoint.x - round(max_stats_len / 2) - 1, stats_text + 1),
-        Point(midpoint.x + round(max_stats_len / 2) - 1, stats_text - len(stats_box)),
-        blank=True
-    )
-    # Paint each of the statistics lines
-    for idx, stat in enumerate(stats_box):
-        from_stat = midpoint.x - round(max_stats_len / 2)
-        to_stat = from_stat + len(stat)
-        if stats_text - idx >= 0:
-            canvas.horizontal_line(stat, stats_text - idx, from_stat, to_stat)
-
-    # adding the url to the top
-    if host:
-        host = " {} ".format(host)
-        from_url = midpoint.x - round(len(host) / 2)
-        to_url = from_url + len(host)
-        canvas.horizontal_line(host, height - 1, from_url, to_url)
-
-    return canvas
+    def clear(self):
+        self.stdscr.clear()
 
 
 # A bunch of regexes nice people on github made.
@@ -323,28 +414,6 @@ def run():
     except KeyboardInterrupt:
         pass
 
-def draw(system, host):
-    width, height = get_terminal_size()
-
-    plotted = plot(width, height, buff, host)
-
-    if winterm and system == "Windows":
-        winterm.set_cursor_position((1, 1))
-    if system == "Darwin":
-        print("\033[%sA" % height)
-    else:
-        print(chr(27) + "[2J")
-
-    print("\n".join(plotted.lines))
-
-def clear():
-    width, height = get_terminal_size()
-    for i in range(height):
-        print(" ")
-
-def on_resize(system, host):
-    clear()
-    draw(system, host)
 
 def _run():
     if len(sys.argv) == 1:
@@ -361,14 +430,18 @@ def _run():
         it = darwin_ping
     else:
         it = linux_ping
+    try:
+        plot = CursesPlot(system, host)
+    except Exception:
+        plot = TextPlot(system, host)
+    with plot as plot:
+        if system != "Windows":
+            signal.signal(signal.SIGWINCH, lambda _1, _2: plot.on_resize())
 
-    if system != "Windows":
-        signal.signal(signal.SIGWINCH, lambda _1, _2: on_resize(system, host))
-
-    clear()
-    for line in it(options):
-        buff.appendleft(line)
-        draw(system, host)
+        plot.clear()
+        for line in it(options):
+            plot.buff.appendleft(line)
+            plot.draw()
 
 
 if __name__ == "__main__":
