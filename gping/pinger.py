@@ -274,6 +274,13 @@ class CursesPlot(BasePlot):
         curses.use_default_colors()
         for i in range(0, curses.COLORS):
             curses.init_pair(i, i, -1)
+        self.COLOR_MAP = {
+            None: curses.color_pair(7),
+            Fore.RESET: curses.color_pair(0),
+            Fore.RED: curses.color_pair(1),
+            Fore.GREEN: curses.color_pair(2),
+            Fore.YELLOW: curses.color_pair(3),
+        }
 
     def __exit__(self, *exc):
         if self.stdscr:
@@ -294,13 +301,7 @@ class CursesPlot(BasePlot):
                 char, color = pair
                 if color != current_color and char != " ":
                     current_color = color
-                curses_color = {
-                    None: curses.color_pair(7),
-                    Fore.RESET: curses.color_pair(0),
-                    Fore.RED: curses.color_pair(1),
-                    Fore.GREEN: curses.color_pair(2),
-                    Fore.YELLOW: curses.color_pair(3),
-                }[current_color]
+                curses_color = self.COLOR_MAP[current_color]
                 try:
                     self.stdscr.addstr(top, left, char, curses_color)
                 except:
