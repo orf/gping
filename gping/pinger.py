@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # coding=utf8
 
-import curses
+try:
+    import curses
+except Exception:
+    pass
 import functools
 import itertools
 import platform
@@ -118,7 +121,7 @@ class BasePlot(ContextDecorator):
             Point(1, 1), Point(width - 1, height - 1)
         )
         # We use islice to slice the data because we can't do a ranged slice on a dequeue :(
-        data_slice = list(islice(self.buff, 0, width - 3))
+        data_slice = islice(self.buff, 0, width - 3)
 
         # Filter the -1's (timeouts) from the data so it doesn't impact avg, sum etc.
         filtered_data = [d for d in self.buff if d != -1]
@@ -304,7 +307,7 @@ class CursesPlot(BasePlot):
                 curses_color = self.COLOR_MAP[current_color]
                 try:
                     self.stdscr.addstr(top, left, char, curses_color)
-                except:
+                except Exception:
                     pass
         self.stdscr.refresh()
 
