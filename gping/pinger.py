@@ -13,7 +13,7 @@ import signal
 
 from colorama import Fore, init
 
-__version__ = "0.0.13"
+__version__ = "0.0.14"
 
 init()
 
@@ -70,8 +70,12 @@ class Canvas(object):
         from_ = int(from_)
         to = int(to)
         data_iter = iter(data)
+        # Iterate vertically
         for y in range(from_, to + 1):
-            self[column, y] = (next(data_iter), paint)
+          str_to_print = next(data_iter)
+          # change column (horizontally) in case of a multi char item
+          for i in range(len(str_to_print)):
+            self[column+i, y] = (str_to_print[i], paint)
 
     def line(self, from_, to, paint=None, character=None):
         from_, to = sorted([from_, to])
@@ -122,13 +126,16 @@ class Canvas(object):
 
 
 def plot(width, height, data, host):
+    # basic configuration.
+    cfg_show_y_num = 1     # Show Y axis
+    cfg_crop_win   = 1     # Use only visible data to calculate Cur-Mix-Max-Avg and thus scale
+    cfg_graph_char = "|"   # Choose graphs character  i.e u"█", "#", "|", "*"
+  
     # We space for a newline after each line, so restrict the hight/width a bit
     width, height = width - 1, height - 1  # Our work area is slightly smaller
-    canvas = Canvas(width, height)
-    # Draw a box around the edges of the screen, one character in.
-    canvas.box(
-        Point(1, 1), Point(width - 1, height - 1)
-    )
+    #calculate values only on the visible window values
+    if cfg_crop_win :
+      data = deque(islice(data, width-4))
     # We use islice to slice the data because we can't do a ranged slice on a dequeue :(
     data_slice = list(islice(data, 0, width - 3))
 
@@ -139,12 +146,21 @@ def plot(width, height, data, host):
 
     average_ping = sum(filtered_data) / len(filtered_data)
     max_ping = max(filtered_data)
-
-    if max_ping > (average_ping * 2):
-        max_ping *= 0.75
-
+    
+    # why cap max_ping though?
+    #if max_ping > (average_ping * 2):
+    #    max_ping *= 0.75
+    
+    y_axis_width = len(str(round(max_ping))) if cfg_show_y_num else 0
+    
     # Scale the chart.
     min_scaled, max_scaled = 0, height - 4
+    
+    canvas = Canvas(width, height)
+    # Draw a box around the edges of the screen, one character in.
+    canvas.box(
+        Point(1, 1), Point(width - 1, height - 1)
+    )
 
     try:
         yellow_zone_idx = round(max_scaled * (100 / max_ping))
@@ -154,7 +170,7 @@ def plot(width, height, data, host):
         yellow_zone_idx = 2
         green_zone_idx = 2
 
-    for column, datum in enumerate(data_slice):
+    for column, datum in enumerate(list(islice(data_slice, 0, width - 3 - y_axis_width))):
         if datum == -1:
             # If it's a timeout then do a red questionmark
             canvas[column + 2, 2] = ("?", Fore.RED)
@@ -180,32 +196,37 @@ def plot(width, height, data, host):
                 return Fore.RED  # Danger zone
 
         canvas.vertical_line(
-            u"█", column + 2, 2, 2 + bar_height, paint=_paint
+          cfg_graph_char , y_axis_width+column + 2, 2, 2 + bar_height, paint=_paint
         )
 
     stats_box = [
-        "Cur: {:6.0f}".format(filtered_data[0]),
-        "Max: {:6.0f}".format(max(filtered_data)),
-        "Min: {:6.0f}".format(min(filtered_data)),  # Filter None values
-        "Avg: {:6.0f}".format(average_ping)
+        "Cur: {:4.0f}".format(filtered_data[0]),
+        "Max: {:4.0f}".format(max(filtered_data)),
+        "Min: {:4.0f}".format(min(filtered_data)),  # Filter None values
+        "Avg: {:4.0f}".format(average_ping)
     ]
     # creating the box for the ping information in the middle
     midpoint = Point(
         round(width / 2),
         round(height / 2)
     )
+    # creating the box for the ping information at top-right (ish...)
+    statspoint = Point(
+        round(width-6),
+        round(3)
+    )
     max_stats_len = max(len(s) for s in stats_box)
     # Draw a box around the outside of the stats box. We do this to stop the bars from touching the text,
     # it looks weird. We need a blank area around it.
-    stats_text = min(height - 2, midpoint.y + len(stats_box) / 2)
-    canvas.box(
-        Point(midpoint.x - round(max_stats_len / 2) - 1, stats_text + 1),
-        Point(midpoint.x + round(max_stats_len / 2) - 1, stats_text - len(stats_box)),
-        blank=True
-    )
+    stats_text = min(height - 2, statspoint.y + len(stats_box) / 2)
+    #canvas.box(
+    #    Point(statspoint.x - round(max_stats_len / 2) - 1, stats_text + 1),
+    #    Point(statspoint.x + round(max_stats_len / 2) - 1, stats_text - len(stats_box)),
+    #    blank=True
+    #)
     # Paint each of the statistics lines
     for idx, stat in enumerate(stats_box):
-        from_stat = midpoint.x - round(max_stats_len / 2)
+        from_stat = statspoint.x - round(max_stats_len / 2)
         to_stat = from_stat + len(stat)
         if stats_text - idx >= 0:
             canvas.horizontal_line(stat, stats_text - idx, from_stat, to_stat)
@@ -216,6 +237,11 @@ def plot(width, height, data, host):
         from_url = midpoint.x - round(len(host) / 2)
         to_url = from_url + len(host)
         canvas.horizontal_line(host, height - 1, from_url, to_url)
+    
+    if cfg_show_y_num :
+      y_axis_nums = [ str(round((max_ping/max_scaled)*i)) if (i%2 == height%2) else "|" for i in range(height-3)]
+      y_axis_nums.append("(ms) ")
+      canvas.vertical_line(y_axis_nums, 1, 2, height-1)
 
     return canvas
 
@@ -325,7 +351,7 @@ def run():
 
 def draw(system, host):
     width, height = get_terminal_size()
-
+    
     plotted = plot(width, height, buff, host)
 
     if winterm and system == "Windows":
@@ -352,7 +378,7 @@ def _run():
         host = options[0]
     else:
         options = sys.argv[1:]
-        host = ""
+        host = str(options)
 
     system = platform.system()
     if system == "Windows":
