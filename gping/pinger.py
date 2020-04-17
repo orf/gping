@@ -293,6 +293,8 @@ def windows_ping(line):
 def linux_ping(line):
     if line.startswith("64 bytes from"):
         return round(float(linux_re.search(line).group(1)))
+    else:
+        return -1
 
 
 @pinger()
