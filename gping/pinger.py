@@ -354,7 +354,7 @@ def _run():
         host = options[0]
     else:
         options = sys.argv[1:]
-        host = ""
+        host = sys.argv[-1]
 
     system = platform.system()
     if system == "Windows":
