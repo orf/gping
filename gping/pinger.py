@@ -61,7 +61,7 @@ class Canvas(object):
         to = int(to)
         data_iter = iter(data)
         for x in range(from_, to):
-            self[x, row] = (next(data_iter), paint)
+            self[x, row] = (next(data_iter, " "), paint)
 
     def vertical_line(self, data, column, from_, to, paint=None):
         if len(data) == 1:
