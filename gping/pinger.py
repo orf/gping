@@ -10,6 +10,7 @@ import sys
 from collections import namedtuple, deque
 from itertools import islice
 import signal
+import math
 
 from colorama import Fore, init
 
@@ -61,7 +62,7 @@ class Canvas(object):
         to = int(to)
         data_iter = iter(data)
         for x in range(from_, to):
-            self[x, row] = (next(data_iter), paint)
+            self[x, row] = (next(data_iter, " "), paint)
 
     def vertical_line(self, data, column, from_, to, paint=None):
         if len(data) == 1:
@@ -131,17 +132,10 @@ def plot(width, height, data, host):
     )
     # We use islice to slice the data because we can't do a ranged slice on a dequeue :(
     data_slice = list(islice(data, 0, width - 3))
-
-    # Filter the -1's (timeouts) from the data so it doesn't impact avg, sum etc.
-    filtered_data = [d for d in data if d != -1]
-    if not filtered_data:
+    if not data_slice:
         return canvas
 
-    average_ping = sum(filtered_data) / len(filtered_data)
-    max_ping = max(filtered_data)
-
-    if max_ping > (average_ping * 2):
-        max_ping *= 0.75
+    max_ping = max(data)
 
     # Scale the chart.
     min_scaled, max_scaled = 0, height - 4
@@ -183,42 +177,78 @@ def plot(width, height, data, host):
             u"█", column + 2, 2, 2 + bar_height, paint=_paint
         )
 
-    stats_box = [
-        "Cur: {:6.0f}".format(filtered_data[0]),
-        "Max: {:6.0f}".format(max(filtered_data)),
-        "Min: {:6.0f}".format(min(filtered_data)),  # Filter None values
-        "Avg: {:6.0f}".format(average_ping)
-    ]
-    # creating the box for the ping information in the middle
-    midpoint = Point(
-        round(width / 2),
-        round(height / 2)
-    )
-    max_stats_len = max(len(s) for s in stats_box)
-    # Draw a box around the outside of the stats box. We do this to stop the bars from touching the text,
-    # it looks weird. We need a blank area around it.
-    stats_text = min(height - 2, midpoint.y + len(stats_box) / 2)
-    canvas.box(
-        Point(midpoint.x - round(max_stats_len / 2) - 1, stats_text + 1),
-        Point(midpoint.x + round(max_stats_len / 2) - 1, stats_text - len(stats_box)),
-        blank=True
-    )
-    # Paint each of the statistics lines
-    for idx, stat in enumerate(stats_box):
-        from_stat = midpoint.x - round(max_stats_len / 2)
-        to_stat = from_stat + len(stat)
-        if stats_text - idx >= 0:
-            canvas.horizontal_line(stat, stats_text - idx, from_stat, to_stat)
+    render_stats(data, canvas, width, height)
 
     # adding the url to the top
     if host:
         host = " {} ".format(host)
-        from_url = midpoint.x - round(len(host) / 2)
+        from_url = width / 2 - round(len(host) / 2)
         to_url = from_url + len(host)
         canvas.horizontal_line(host, height - 1, from_url, to_url)
 
     return canvas
 
+def render_stats(all_pings, canvas, width, height):
+    valid_pings = sorted( [ pt for pt in all_pings if pt != -1 ] )
+    valid_pings_last_n = sorted( [ pt for pt in list(all_pings)[:width - 2] if pt != -1 ] )
+
+    if not valid_pings:
+        return
+
+    stats = [
+      ("Last", "{} samples".format(len(valid_pings))),
+      ("Cur", int(valid_pings[0])),
+      ("p95", int(percentile(valid_pings, 95))),
+      ("p50", int(percentile(valid_pings, 50))),
+      ("p5", int(percentile(valid_pings, 5))),
+      ("Loss", percent_lost(valid_pings)),
+      None,
+      ("Last", "{} samples".format(len(valid_pings_last_n))),
+      ("max", int(percentile(valid_pings_last_n, 100))),
+      ("p95", int(percentile(valid_pings_last_n, 95))),
+      ("p50", int(percentile(valid_pings_last_n, 50))),
+      ("p5", int(percentile(valid_pings_last_n, 5))),
+      ("Loss", percent_lost(valid_pings_last_n)),
+    ]
+
+    max_label_width = max(len(stat[0]) for stat in stats if stat)
+    max_value_width = max(len(str(stat[1])) for stat in stats if stat)
+    box_width = max_label_width + 2 + max_value_width
+    box_height = len(stats)
+
+    # Paint each of the statistics lines
+    for line_num, stat in enumerate(stats):
+        if stat is None:
+            continue
+        stat_text = "{label: >{label_width}}: {value: <{value_width}}".format(
+              label=stat[0],
+              label_width=max_label_width,
+              value=str(stat[1]),
+              value_width=max_value_width,
+        )
+        
+        canvas.horizontal_line(stat_text,
+                               box_height - line_num,
+                               width - box_width - 1, width - 1)
+
+def percent_lost(sampling):
+    num_lost = sum( [ sample == -1 for sample in sampling ] )
+    percent_lost = int(100.0 * num_lost / len(sampling))
+    return str(percent_lost) + "%"
+
+def percentile(series, percentile):
+    """ Re-implementation of numpy.percentile to avoid pulling in additional dependencies.
+    Assumes the input is sorted. Averages the two nearest data points. """
+    if not series:
+        return None
+
+    idx = (len(series) - 1) * percentile / 100.0
+    return (series[int(math.floor(idx))] + series[int(math.ceil(idx))]) / 2
+
+assert percentile([1], 50) == 1
+assert percentile([1, 3, 5], 50) == 3
+assert percentile([1, 3, 5], 75) == 4
+assert percentile([1, 3, 5], 100) == 5
 
 # A bunch of regexes nice people on github made.
 windows_re = re.compile('.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?\\d+.*?(\\d+)', re.IGNORECASE | re.DOTALL)
@@ -293,6 +323,8 @@ def windows_ping(line):
 def linux_ping(line):
     if line.startswith("64 bytes from"):
         return round(float(linux_re.search(line).group(1)))
+    else:
+        return -1
 
 
 @pinger()
@@ -352,7 +384,7 @@ def _run():
         host = options[0]
     else:
         options = sys.argv[1:]
-        host = ""
+        host = sys.argv[-1]
 
     system = platform.system()
     if system == "Windows":
