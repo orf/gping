@@ -135,7 +135,13 @@ def plot(width, height, data, host):
     if not data_slice:
         return canvas
 
-    max_ping = max(data)
+    # gradually adjust the y-axis to focus on what's in the visible window
+    # we could do a much better job of gradually transitioning if we knew
+    # what the max_ping was on the last plot.
+    offscreen_far_max = max(islice(data, 0, round((width - 3) * 1.5)))
+    offscreen_near_max = max(islice(data, 0, round((width - 3) * 1.1)))
+    onscreen_max = max(data_slice)
+    max_ping = round((offscreen_far_max + 2*offscreen_near_max + 3*onscreen_max) / 6)
 
     # Scale the chart.
     min_scaled, max_scaled = 0, height - 4
@@ -226,7 +232,7 @@ def render_stats(all_pings, canvas, width, height):
               value=str(stat[1]),
               value_width=max_value_width,
         )
-        
+
         canvas.horizontal_line(stat_text,
                                box_height - line_num,
                                width - box_width - 1, width - 1)
