@@ -201,14 +201,16 @@ def render_stats(all_pings, canvas, width, height):
       ("p95", int(percentile(valid_pings, 95))),
       ("p50", int(percentile(valid_pings, 50))),
       ("p5", int(percentile(valid_pings, 5))),
-      ("Loss", percent_lost(valid_pings)),
+      ("lost", num_lost_ratio(all_pings)),
+      ("Loss", percent_lost(all_pings)),
       None,
       ("Last", "{} samples".format(len(valid_pings_last_n))),
       ("max", int(percentile(valid_pings_last_n, 100))),
       ("p95", int(percentile(valid_pings_last_n, 95))),
       ("p50", int(percentile(valid_pings_last_n, 50))),
       ("p5", int(percentile(valid_pings_last_n, 5))),
-      ("Loss", percent_lost(valid_pings_last_n)),
+      ("lost", num_lost_ratio(list(all_pings)[:width-2])),
+      ("Loss", percent_lost(list(all_pings)[:width-2])),
     ]
 
     max_label_width = max(len(stat[0]) for stat in stats if stat)
@@ -231,10 +233,19 @@ def render_stats(all_pings, canvas, width, height):
                                box_height - line_num,
                                width - box_width - 1, width - 1)
 
+
+def num_lost(sampling):
+    return sum( [ sample == -1 for sample in sampling ] )
+
+
+def num_lost_ratio(sampling):
+    return "{}/{}".format(num_lost(sampling), len(sampling))
+
+
 def percent_lost(sampling):
-    num_lost = sum( [ sample == -1 for sample in sampling ] )
-    percent_lost = int(100.0 * num_lost / len(sampling))
+    percent_lost = int(100.0 * num_lost(sampling) / len(sampling))
     return str(percent_lost) + "%"
+
 
 def percentile(series, percentile):
     """ Re-implementation of numpy.percentile to avoid pulling in additional dependencies.
@@ -319,8 +330,10 @@ def windows_ping(line):
         return -1
 
 
-@pinger()
+@pinger(['-O'])
 def linux_ping(line):
+    if line.startswith('PING'):
+        return None
     if line.startswith("64 bytes from"):
         return round(float(linux_re.search(line).group(1)))
     else:
