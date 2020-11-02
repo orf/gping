@@ -1,39 +1,52 @@
-# gping [![Snap Status](https://build.snapcraft.io/badge/orf/gping.svg)](https://build.snapcraft.io/user/orf/gping) ![](https://img.shields.io/pypi/v/pinggraph.svg) ![]( 	https://img.shields.io/pypi/pyversions/pinggraph.svg) ![](https://img.shields.io/pypi/format/pinggraph.svg)
-Ping, but with a graph
+# gping :rocket:
 
-![](/doc/readme_screencast.gif)
+[![Crates.io](https://img.shields.io/crates/v/gping.svg)](https://crates.io/crates/gping)
+[![Actions Status](https://github.com/orf/gping/workflows/CI/badge.svg)](https://github.com/orf/gping/actions)
 
-## Install and run
+Ping, but with a graph.
 
-If you're using Linux you can install gping using `snap`:
+![](./images/readme-example.gif)
 
-`sudo snap install gping && sudo snap connect gping:network-observe`
+Table of Contents
+=================
 
-Then just execute as usual using the `gping` command.
+   * [Install :cd:](#install-cd)
+      * [Homebrew (MacOS   Linux)](#homebrew-macos--linux)
+      * [Binaries (Windows)](#binaries-windows)
+      * [Cargo](#cargo)
+   * [Usage :saxophone:](#usage-saxophone)
 
-### Using pip
+# Install :cd:
 
-Created/tested with Python 3.4 and 2.7.
+## Homebrew (MacOS + Linux)
 
-`pip3 install pinggraph`
+`brew tap orf/brew`, then `brew install gping`
 
-Tested on Windows, Ubuntu and OS X. After installation just run:
+## Binaries (Windows)
 
-`gping [yourhost]`
+Download the latest release from [the github releases page](https://github.com/orf/gping/releases). Extract it 
+and move it to a directory on your `PATH`.
 
-If you don't give a host then it pings google.
+## Cargo
 
-## Why?
-My apartments internet is all 4g, and while it's normally pretty fast it can be a bit flakey. I often
-found myself running `ping -t google.com` in a command window to get a rough idea of the network speed,
-and I thought a graph would be a great way to visualize the data. I still wanted to just use the command
-line though, so I decided to try and write a cross platform one that I could use. And here we are.
+`cargo install gping`
 
+# Usage :saxophone:
 
-## Code
-For a quick hack the code started off really nice, but after I decided pretty colors
-were a good addition it quickly got rather complicated. Inside pinger.py
-is a function `plot()`, this uses a canvas-like object to "draw" things like lines
-and boxes to the screen. I found on Windows that changing the colors is slow and
-caused the screen to flicker, so theres a big mess of a function called `process_colors`
-to try and optimize that. Don't ask.
+Just run `gping [host]`.
+
+```
+$ gping --help
+gping 0.1.0
+Ping, but with a graph.
+
+USAGE:
+    gping <host>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+ARGS:
+    <host>    Host or IP to ping
+```
