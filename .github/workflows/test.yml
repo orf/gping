@@ -36,10 +36,10 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build
+      - name: Update
         uses: actions-rs/cargo@v1
         with:
-          command: build
+          command: update
 
       - name: Run
         uses: actions-rs/cargo@v1
