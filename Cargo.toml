@@ -3,6 +3,8 @@ name = "gping"
 version = "0.1.0"
 authors = ["Tom Forbes <tom@tomforb.es>"]
 edition = "2018"
+repository = "https://github.com/orf/gping"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
