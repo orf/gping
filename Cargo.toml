@@ -1,6 +1,6 @@
 [package]
 name = "gping"
-version = "0.1.1"
+version = "0.1.2-alpha.0"
 authors = ["Tom Forbes <tom@tomforb.es>"]
 edition = "2018"
 repository = "https://github.com/orf/gping"
