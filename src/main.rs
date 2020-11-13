@@ -16,7 +16,7 @@ use std::time::Duration;
 use structopt::StructOpt;
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
-use tui::style::{Color, Modifier, Style};
+use tui::style::{Color, Style};
 use tui::text::Span;
 use tui::widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, Paragraph};
 use tui::{symbols, Terminal};
@@ -86,19 +86,9 @@ impl App {
         let increment = Duration::from_micros((difference / 3f64) as u64);
         let duration = Duration::from_micros(min as u64);
 
-        vec![
-            Span::styled(
-                format!("{:?}", duration),
-                Style::default().add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(format!("{:?}", duration.add(increment))),
-            Span::raw(format!("{:?}", duration.add(increment) * 2)),
-            Span::raw(format!("{:?}", duration.add(increment) * 3)),
-            Span::styled(
-                format!("{:?}", duration.add(increment) * 4),
-                Style::default().add_modifier(Modifier::BOLD),
-            ),
-        ]
+        (0..7)
+            .map(|i| Span::raw(format!("{:?}", duration.add(increment * i))))
+            .collect()
     }
 }
 
