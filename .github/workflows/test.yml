@@ -29,18 +29,6 @@ jobs:
           toolchain: stable
           override: true
 
-      # Caching setup
-      - name: Cache cargo build
-        uses: actions/cache@v1
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Update
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
-
       - name: Run
         uses: actions-rs/cargo@v1
         with:
