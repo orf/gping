@@ -242,9 +242,9 @@ dependencies = [
 
 [[package]]
 name = "pinger"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f7288d2e2ddc2f3435ae8ca4bae92ea4649b94f80d009f14946b9718360171e"
+checksum = "0efb4c0c208afcc5a3289eb78ae93bc15ffc687d7f48ed731050eb38937a8cfa"
 dependencies = [
  "anyhow",
  "lazy_static",
