@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 pinger = "0.1.3"
 structopt = "0.3.20"
-tui = { version = "0.12.0", features = ["crossterm"] }
+tui = { version = "0.12.0", features = ["crossterm"], default_features = false }
 # tui uses crossterm 0.17.7
 crossterm = "0.17.7"
 anyhow = "1.0.34"
