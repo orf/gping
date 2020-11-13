@@ -20,12 +20,6 @@ jobs:
             bin: gping.exe
             name: gping-Windows-x86_64.zip
     env:
-      GIT_WORKSPACE: ${{github.workspace}}/workspace-test-dir/
-      GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
-      GITLAB_ALTERNATIVE_TOKEN: ${{ secrets.GITLAB_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GCM_INTERACTIVE: never
-      GIT_TERMINAL_PROMPT: 0
       RUST_BACKTRACE: "1"
     steps:
       - uses: actions/checkout@master
@@ -51,6 +45,11 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
 
       - name: Run
         uses: actions-rs/cargo@v1
