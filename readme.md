@@ -18,6 +18,8 @@ Table of Contents
 
 # Install :cd:
 
+**FYI:** The old Python version can be found under the [`python` tag](https://github.com/orf/gping/tree/python).
+
 ## Homebrew (MacOS + Linux)
 
 `brew tap orf/brew`, then `brew install gping`
