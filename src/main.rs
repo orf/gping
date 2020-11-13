@@ -212,7 +212,6 @@ fn main() -> Result<()> {
                         )
                         .y_axis(
                             Axis::default()
-                                .title("Time")
                                 .style(Style::default().fg(Color::Gray))
                                 .bounds(y_axis_bounds)
                                 .labels(app.y_axis_labels(y_axis_bounds)),
