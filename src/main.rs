@@ -1,3 +1,5 @@
+mod ringbuffer;
+
 use anyhow::Result;
 use crossterm::event::{KeyEvent, KeyModifiers};
 use crossterm::{
@@ -36,7 +38,7 @@ struct Args {
 }
 
 struct App {
-    data: Vec<(f64, f64)>,
+    data: ringbuffer::FixedRingBuffer<(f64, f64)>,
     capacity: usize,
     idx: i64,
     window: [f64; 2],
@@ -45,7 +47,7 @@ struct App {
 impl App {
     fn new(capacity: usize) -> Self {
         App {
-            data: Vec::with_capacity(capacity),
+            data: ringbuffer::FixedRingBuffer::new(capacity),
             capacity,
             idx: 0,
             window: [0.0, capacity as f64],
@@ -54,7 +56,6 @@ impl App {
     fn update(&mut self, item: Option<Duration>) {
         self.idx += 1;
         if self.data.len() >= self.capacity {
-            self.data.remove(0);
             self.window[0] += 1_f64;
             self.window[1] += 1_f64;
         }
@@ -205,7 +206,7 @@ fn main() -> Result<()> {
                         .marker(symbols::Marker::Braille)
                         .style(Style::default().fg(Color::Cyan))
                         .graph_type(GraphType::Line)
-                        .data(&app.data);
+                        .data(&app.data.as_slice());
 
                     let y_axis_bounds = app.y_axis_bounds();
 
