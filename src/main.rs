@@ -26,6 +26,13 @@ use tui::{symbols, Terminal};
 struct Args {
     #[structopt(help = "Host or IP to ping")]
     host: String,
+    #[structopt(
+        short,
+        long,
+        default_value = "100",
+        help = "Determines the number pings to display."
+    )]
+    buffer: usize,
 }
 
 struct App {
@@ -100,8 +107,7 @@ enum Event {
 
 fn main() -> Result<()> {
     let args = Args::from_args();
-
-    let mut app = App::new(100);
+    let mut app = App::new(args.buffer);
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
