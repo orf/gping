@@ -29,9 +29,10 @@ struct Args {
     #[structopt(
         short,
         long,
-        help = "Determines the number pings to display. Defaults to 100"
+        default_value = "100",
+        help = "Determines the number pings to display."
     )]
-    buffer: Option<usize>,
+    buffer: usize,
 }
 
 struct App {
@@ -116,7 +117,7 @@ enum Event {
 
 fn main() -> Result<()> {
     let args = Args::from_args();
-    let mut app = App::new(args.buffer.unwrap_or(100));
+    let mut app = App::new(args.buffer);
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
