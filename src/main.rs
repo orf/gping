@@ -11,6 +11,7 @@ use histogram::Histogram;
 use pinger::{ping, PingResult};
 use std::io;
 use std::io::Write;
+use std::iter;
 use std::ops::Add;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
@@ -27,8 +28,8 @@ use tui::{symbols, Terminal};
 #[derive(Debug, StructOpt)]
 #[structopt(name = "gping", about = "Ping, but with a graph.")]
 struct Args {
-    #[structopt(help = "Host or IP to ping")]
-    host: String,
+    #[structopt(help = "Hosts or IPs to ping", required = true)]
+    hosts: Vec<String>,
     #[structopt(
         short,
         long,
@@ -39,48 +40,53 @@ struct Args {
 }
 
 struct App {
-    data: ringbuffer::FixedRingBuffer<(f64, f64)>,
+    data: Vec<ringbuffer::FixedRingBuffer<(f64, f64)>>,
     capacity: usize,
     idx: i64,
     window: [f64; 2],
 }
 
 impl App {
-    fn new(capacity: usize) -> Self {
+    fn new(host_count: usize, capacity: usize) -> Self {
         App {
-            data: ringbuffer::FixedRingBuffer::new(capacity),
+            data: (0..host_count)
+                .map(|_|  ringbuffer::FixedRingBuffer::new(capacity))
+                .collect(),
             capacity,
             idx: 0,
             window: [0.0, capacity as f64],
         }
     }
-    fn update(&mut self, item: Option<Duration>) {
+    fn update(&mut self, host_id: usize, item: Option<Duration>) {
         self.idx += 1;
-        if self.data.len() >= self.capacity {
+        let data = &mut self.data[host_id];
+        if data.len() >= self.capacity {
             self.window[0] += 1_f64;
             self.window[1] += 1_f64;
         }
         match item {
-            Some(dur) => self.data.push((self.idx as f64, dur.as_micros() as f64)),
-            None => self.data.push((self.idx as f64, 0_f64)),
+            Some(dur) => data.push((self.idx as f64, dur.as_micros() as f64)),
+            None => data.push((self.idx as f64, 0_f64)),
         }
     }
-    fn stats(&self) -> Histogram {
-        let mut hist = Histogram::new();
+    fn stats(&self) -> Vec<Histogram> {
+        self.data
+            .iter()
+            .map(|data| {
+                let mut hist = Histogram::new();
 
-        for (_, val) in self.data.iter().filter(|v| v.1 != 0f64) {
-            hist.increment(*val as u64).unwrap_or(());
-        }
+                for (_, val) in data.iter().filter(|v| v.1 != 0f64) {
+                    hist.increment(*val as u64).unwrap_or(());
+                }
 
-        hist
+                hist
+            })
+            .collect()
     }
     fn y_axis_bounds(&self) -> [f64; 2] {
-        let min = self
-            .data
-            .iter()
-            .map(|v| v.1)
-            .fold(f64::INFINITY, |a, b| a.min(b));
-        let max = self.data.iter().map(|v| v.1).fold(0f64, |a, b| a.max(b));
+        let iter = self.data.iter().flatten().map(|v| v.1);
+        let min = iter.clone().fold(f64::INFINITY, |a, b| a.min(b));
+        let max = iter.fold(0f64, |a, b| a.max(b));
         // Add a 10% buffer to the top and bottom
         let max_10_percent = (max * 10_f64) / 100_f64;
         let min_10_percent = (min * 10_f64) / 100_f64;
@@ -103,13 +109,13 @@ impl App {
 
 #[derive(Debug)]
 enum Event {
-    Update(PingResult),
+    Update(usize, PingResult),
     Input(KeyEvent),
 }
 
 fn main() -> Result<()> {
     let args = Args::from_args();
-    let mut app = App::new(args.buffer);
+    let mut app = App::new(args.hosts.len(), args.buffer);
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -121,21 +127,24 @@ fn main() -> Result<()> {
 
     let (key_tx, rx) = mpsc::channel();
 
-    let ping_tx = key_tx.clone();
+    let mut ping_threads = vec![];
 
-    let killed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    for (host_id, host) in args.hosts.iter().cloned().enumerate() {
+        let ping_tx = key_tx.clone();
 
-    let host = args.host.clone();
+        let killed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let killed_ping = std::sync::Arc::clone(&killed);
 
-    // Pump ping messages into the queue
-    let killed_ping = std::sync::Arc::clone(&killed);
-    let ping_thread = thread::spawn(move || -> Result<()> {
-        let stream = ping(host)?;
-        while !killed_ping.load(Ordering::Acquire) {
-            ping_tx.send(Event::Update(stream.recv()?))?;
-        }
-        Ok(())
-    });
+        // Pump ping messages into the queue
+        let ping_thread = thread::spawn(move || -> Result<()> {
+            let stream = ping(host)?;
+            while !killed_ping.load(Ordering::Acquire) {
+                ping_tx.send(Event::Update(stream.recv()?))?;
+            }
+            Ok(())
+        });
+        ping_threads.push(ping_thread);
+    }
 
     // Pump keyboard messages into the queue
     let killed_thread = std::sync::Arc::clone(&killed);
@@ -152,71 +161,81 @@ fn main() -> Result<()> {
 
     loop {
         match rx.recv()? {
-            Event::Update(ping_result) => {
+            Event::Update(host_id, ping_result) => {
                 match ping_result {
-                    PingResult::Pong(duration) => app.update(Some(duration)),
-                    PingResult::Timeout => app.update(None),
+                    PingResult::Pong(duration) => app.update(host_id, Some(duration)),
+                    PingResult::Timeout => app.update(host_id, None),
                 };
                 terminal.draw(|f| {
                     let chunks = Layout::default()
                         .direction(Direction::Vertical)
                         .margin(2)
                         .constraints(
-                            [Constraint::Percentage(5), Constraint::Percentage(10)].as_ref(),
+                            iter::repeat(Constraint::Length(1))
+                                .take(args.hosts.len())
+                                .chain(iter::once(Constraint::Percentage(10)))
+                                .collect::<Vec<_>>()
+                                .as_ref(),
                         )
                         .split(f.size());
 
-                    let header_layout = Layout::default()
-                        .direction(Direction::Horizontal)
-                        .constraints(
-                            [
-                                Constraint::Percentage(25),
-                                Constraint::Percentage(25),
-                                Constraint::Percentage(25),
-                                Constraint::Percentage(25),
-                            ]
-                            .as_ref(),
-                        )
-                        .split(chunks[0]);
+                    for (host_id, (host, stats)) in args.hosts.iter().zip(app.stats()).enumerate() {
+                        let header_layout = Layout::default()
+                            .direction(Direction::Horizontal)
+                            .constraints(
+                                [
+                                    Constraint::Percentage(25),
+                                    Constraint::Percentage(25),
+                                    Constraint::Percentage(25),
+                                    Constraint::Percentage(25),
+                                ]
+                                .as_ref(),
+                            )
+                            .split(chunks[host_id]);
 
-                    f.render_widget(
-                        Paragraph::new(format!("Pinging {}", &args.host)),
-                        header_layout[0],
-                    );
+                        f.render_widget(
+                            Paragraph::new(format!("Pinging {}", host)),
+                            header_layout[0],
+                        );
 
-                    let stats = app.stats();
+                        f.render_widget(
+                            Paragraph::new(format!(
+                                "min {:?}",
+                                Duration::from_micros(stats.minimum().unwrap_or(0))
+                            )),
+                            header_layout[1],
+                        );
+                        f.render_widget(
+                            Paragraph::new(format!(
+                                "max {:?}",
+                                Duration::from_micros(stats.maximum().unwrap_or(0))
+                            )),
+                            header_layout[2],
+                        );
+                        f.render_widget(
+                            Paragraph::new(format!(
+                                "p95 {:?}",
+                                Duration::from_micros(stats.percentile(95.0).unwrap_or(0))
+                            )),
+                            header_layout[3],
+                        );
+                    }
 
-                    f.render_widget(
-                        Paragraph::new(format!(
-                            "min {:?}",
-                            Duration::from_micros(stats.minimum().unwrap_or(0))
-                        )),
-                        header_layout[1],
-                    );
-                    f.render_widget(
-                        Paragraph::new(format!(
-                            "max {:?}",
-                            Duration::from_micros(stats.maximum().unwrap_or(0))
-                        )),
-                        header_layout[2],
-                    );
-                    f.render_widget(
-                        Paragraph::new(format!(
-                            "p95 {:?}",
-                            Duration::from_micros(stats.percentile(95.0).unwrap_or(0))
-                        )),
-                        header_layout[3],
-                    );
-
-                    let dataset = Dataset::default()
-                        .marker(symbols::Marker::Braille)
-                        .style(Style::default().fg(Color::Cyan))
-                        .graph_type(GraphType::Line)
-                        .data(&app.data.as_slice());
+                    let datasets: Vec<_> = app
+                        .data
+                        .iter()
+                        .map(|data| {
+                            Dataset::default()
+                                .marker(symbols::Marker::Braille)
+                                .style(Style::default().fg(Color::Cyan))
+                                .graph_type(GraphType::Line)
+                                .data(data.as_slice())
+                        })
+                        .collect();
 
                     let y_axis_bounds = app.y_axis_bounds();
 
-                    let chart = Chart::new(vec![dataset])
+                    let chart = Chart::new(datasets)
                         .block(Block::default().borders(Borders::NONE))
                         .x_axis(
                             Axis::default()
@@ -229,7 +248,7 @@ fn main() -> Result<()> {
                                 .bounds(y_axis_bounds)
                                 .labels(app.y_axis_labels(y_axis_bounds)),
                         );
-                    f.render_widget(chart, chunks[1]);
+                    f.render_widget(chart, chunks[args.hosts.len()]);
                 })?;
             }
             Event::Input(input) => match input.code {
