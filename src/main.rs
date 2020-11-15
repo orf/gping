@@ -129,7 +129,7 @@ fn main() -> Result<()> {
     // Pump ping messages into the queue
     let killed_ping = std::sync::Arc::clone(&killed);
     let ping_thread = thread::spawn(move || -> Result<()> {
-        let stream = ping(host).expect("Error pinging");
+        let stream = ping(host)?;
         while !killed_ping.load(Ordering::Acquire) {
             ping_tx.send(Event::Update(stream.recv()?))?;
         }
@@ -140,9 +140,9 @@ fn main() -> Result<()> {
     let killed_thread = std::sync::Arc::clone(&killed);
     let key_thread = thread::spawn(move || -> Result<()> {
         while !killed_thread.load(Ordering::Acquire) {
-            if event::poll(Duration::from_secs(1)).unwrap() {
-                if let CEvent::Key(key) = event::read().unwrap() {
-                    key_tx.send(Event::Input(key)).unwrap();
+            if event::poll(Duration::from_secs(1))? {
+                if let CEvent::Key(key) = event::read()? {
+                    key_tx.send(Event::Input(key))?;
                 }
             }
         }
@@ -245,8 +245,8 @@ fn main() -> Result<()> {
         }
     }
 
-    let _ = ping_thread.join().unwrap().unwrap();
-    let _ = key_thread.join().unwrap().unwrap();
+    let _ = ping_thread.join().unwrap()?;
+    let _ = key_thread.join().unwrap()?;
 
     disable_raw_mode()?;
     execute!(
