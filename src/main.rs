@@ -42,8 +42,9 @@ struct Args {
 struct App {
     data: Vec<ringbuffer::FixedRingBuffer<(f64, f64)>>,
     capacity: usize,
-    idx: i64,
-    window: [f64; 2],
+    idx: Vec<i64>,
+    window_min: Vec<f64>,
+    window_max: Vec<f64>,
 }
 
 impl App {
@@ -53,20 +54,21 @@ impl App {
                 .map(|_|  ringbuffer::FixedRingBuffer::new(capacity))
                 .collect(),
             capacity,
-            idx: 0,
-            window: [0.0, capacity as f64],
+            idx: vec![0; host_count],
+            window_min: vec![0.0; host_count],
+            window_max: vec![capacity as f64; host_count],
         }
     }
     fn update(&mut self, host_id: usize, item: Option<Duration>) {
-        self.idx += 1;
+        self.idx[host_id] += 1;
         let data = &mut self.data[host_id];
         if data.len() >= self.capacity {
-            self.window[0] += 1_f64;
-            self.window[1] += 1_f64;
+            self.window_min[host_id] += 1_f64;
+            self.window_max[host_id] += 1_f64;
         }
         match item {
-            Some(dur) => data.push((self.idx as f64, dur.as_micros() as f64)),
-            None => data.push((self.idx as f64, 0_f64)),
+            Some(dur) => data.push((self.idx[host_id] as f64, dur.as_micros() as f64)),
+            None => data.push((self.idx[host_id] as f64, 0_f64)),
         }
     }
     fn stats(&self) -> Vec<Histogram> {
@@ -82,6 +84,12 @@ impl App {
                 hist
             })
             .collect()
+    }
+    fn x_axis_bounds(&self) -> [f64; 2] {
+        [
+            self.window_min.iter().fold(f64::INFINITY, |a, &b| a.min(b)),
+            self.window_max.iter().fold(0f64, |a, &b| a.max(b)),
+        ]
     }
     fn y_axis_bounds(&self) -> [f64; 2] {
         let iter = self.data.iter().flatten().map(|v| v.1);
@@ -240,7 +248,7 @@ fn main() -> Result<()> {
                         .x_axis(
                             Axis::default()
                                 .style(Style::default().fg(Color::Gray))
-                                .bounds(app.window),
+                                .bounds(app.x_axis_bounds()),
                         )
                         .y_axis(
                             Axis::default()
