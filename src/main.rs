@@ -40,6 +40,7 @@ struct Args {
 }
 
 struct App {
+    styles: Vec<Style>,
     data: Vec<ringbuffer::FixedRingBuffer<(f64, f64)>>,
     capacity: usize,
     idx: Vec<i64>,
@@ -50,6 +51,9 @@ struct App {
 impl App {
     fn new(host_count: usize, capacity: usize) -> Self {
         App {
+            styles: (0..host_count)
+                .map(|i| Style::default().fg(Color::Indexed(i as u8)))
+                .collect(),
             data: (0..host_count)
                 .map(|_|  ringbuffer::FixedRingBuffer::new(capacity))
                 .collect(),
@@ -187,7 +191,13 @@ fn main() -> Result<()> {
                         )
                         .split(f.size());
 
-                    for (host_id, (host, stats)) in args.hosts.iter().zip(app.stats()).enumerate() {
+                    for (((host_id, host), stats), &style) in args
+                        .hosts
+                        .iter()
+                        .enumerate()
+                        .zip(app.stats())
+                        .zip(&app.styles)
+                    {
                         let header_layout = Layout::default()
                             .direction(Direction::Horizontal)
                             .constraints(
@@ -202,7 +212,7 @@ fn main() -> Result<()> {
                             .split(chunks[host_id]);
 
                         f.render_widget(
-                            Paragraph::new(format!("Pinging {}", host)),
+                            Paragraph::new(format!("Pinging {}", host)).style(style),
                             header_layout[0],
                         );
 
@@ -210,21 +220,24 @@ fn main() -> Result<()> {
                             Paragraph::new(format!(
                                 "min {:?}",
                                 Duration::from_micros(stats.minimum().unwrap_or(0))
-                            )),
+                            ))
+                            .style(style),
                             header_layout[1],
                         );
                         f.render_widget(
                             Paragraph::new(format!(
                                 "max {:?}",
                                 Duration::from_micros(stats.maximum().unwrap_or(0))
-                            )),
+                            ))
+                            .style(style),
                             header_layout[2],
                         );
                         f.render_widget(
                             Paragraph::new(format!(
                                 "p95 {:?}",
                                 Duration::from_micros(stats.percentile(95.0).unwrap_or(0))
-                            )),
+                            ))
+                            .style(style),
                             header_layout[3],
                         );
                     }
@@ -232,10 +245,11 @@ fn main() -> Result<()> {
                     let datasets: Vec<_> = app
                         .data
                         .iter()
-                        .map(|data| {
+                        .zip(&app.styles)
+                        .map(|(data, &style)| {
                             Dataset::default()
                                 .marker(symbols::Marker::Braille)
-                                .style(Style::default().fg(Color::Cyan))
+                                .style(style)
                                 .graph_type(GraphType::Line)
                                 .data(data.as_slice())
                         })
