@@ -52,7 +52,7 @@ impl App {
     fn new(host_count: usize, capacity: usize) -> Self {
         App {
             styles: (0..host_count)
-                .map(|i| Style::default().fg(Color::Indexed(i as u8)))
+                .map(|i| Style::default().fg(Color::Indexed(i as u8 + 1)))
                 .collect(),
             data: (0..host_count)
                 .map(|_| ringbuffer::FixedRingBuffer::new(capacity))
@@ -246,36 +246,36 @@ fn main() -> Result<()> {
                             header_layout[3],
                         );
                     }
-                    //
-                    // let datasets: Vec<_> = app
-                    //     .data
-                    //     .iter()
-                    //     .zip(&app.styles)
-                    //     .map(|(data, &style)| {
-                    //         Dataset::default()
-                    //             .marker(symbols::Marker::Braille)
-                    //             .style(style)
-                    //             .graph_type(GraphType::Line)
-                    //             .data(data.as_slice())
-                    //     })
-                    //     .collect();
-                    //
-                    // let y_axis_bounds = app.y_axis_bounds();
-                    //
-                    // let chart = Chart::new(datasets)
-                    //     .block(Block::default().borders(Borders::NONE))
-                    //     .x_axis(
-                    //         Axis::default()
-                    //             .style(Style::default().fg(Color::Gray))
-                    //             .bounds(app.x_axis_bounds()),
-                    //     )
-                    //     .y_axis(
-                    //         Axis::default()
-                    //             .style(Style::default().fg(Color::Gray))
-                    //             .bounds(y_axis_bounds)
-                    //             .labels(app.y_axis_labels(y_axis_bounds)),
-                    //     );
-                    // f.render_widget(chart, chunks[args.hosts.len()]);
+
+                    let datasets: Vec<_> = app
+                        .data
+                        .iter()
+                        .zip(&app.styles)
+                        .map(|(data, &style)| {
+                            Dataset::default()
+                                .marker(symbols::Marker::Braille)
+                                .style(style)
+                                .graph_type(GraphType::Line)
+                                .data(data.as_slice())
+                        })
+                        .collect();
+
+                    let y_axis_bounds = app.y_axis_bounds();
+
+                    let chart = Chart::new(datasets)
+                        .block(Block::default().borders(Borders::NONE))
+                        .x_axis(
+                            Axis::default()
+                                .style(Style::default().fg(Color::Gray))
+                                .bounds(app.x_axis_bounds()),
+                        )
+                        .y_axis(
+                            Axis::default()
+                                .style(Style::default().fg(Color::Gray))
+                                .bounds(y_axis_bounds)
+                                .labels(app.y_axis_labels(y_axis_bounds)),
+                        );
+                    f.render_widget(chart, chunks[args.hosts.len()]);
                 })?;
             }
             Event::Input(input) => match input.code {
