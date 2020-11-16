@@ -12,6 +12,7 @@ use pinger::{ping, PingResult};
 use std::io;
 use std::io::Write;
 use std::ops::Add;
+use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -122,26 +123,31 @@ fn main() -> Result<()> {
 
     let ping_tx = key_tx.clone();
 
+    let killed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
     let host = args.host.clone();
 
     // Pump ping messages into the queue
-    thread::spawn(move || -> Result<()> {
-        let stream = ping(host).expect("Error pinging");
-
-        loop {
+    let killed_ping = std::sync::Arc::clone(&killed);
+    let ping_thread = thread::spawn(move || -> Result<()> {
+        let stream = ping(host)?;
+        while !killed_ping.load(Ordering::Acquire) {
             ping_tx.send(Event::Update(stream.recv()?))?;
         }
+        Ok(())
     });
 
     // Pump keyboard messages into the queue
-    thread::spawn(move || -> Result<()> {
-        loop {
-            if event::poll(Duration::from_secs(1)).unwrap() {
-                if let CEvent::Key(key) = event::read().unwrap() {
-                    key_tx.send(Event::Input(key)).unwrap();
+    let killed_thread = std::sync::Arc::clone(&killed);
+    let key_thread = thread::spawn(move || -> Result<()> {
+        while !killed_thread.load(Ordering::Acquire) {
+            if event::poll(Duration::from_secs(1))? {
+                if let CEvent::Key(key) = event::read()? {
+                    key_tx.send(Event::Input(key))?;
                 }
             }
         }
+        Ok(())
     });
 
     loop {
@@ -228,15 +234,20 @@ fn main() -> Result<()> {
             }
             Event::Input(input) => match input.code {
                 KeyCode::Char('q') | KeyCode::Esc => {
+                    killed.store(true, Ordering::Release);
                     break;
                 }
                 KeyCode::Char('c') if input.modifiers == KeyModifiers::CONTROL => {
+                    killed.store(true, Ordering::Release);
                     break;
                 }
                 _ => {}
             },
         }
     }
+
+    let _ = ping_thread.join().unwrap()?;
+    let _ = key_thread.join().unwrap()?;
 
     disable_raw_mode()?;
     execute!(
