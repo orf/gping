@@ -55,7 +55,7 @@ impl App {
                 .map(|i| Style::default().fg(Color::Indexed(i as u8)))
                 .collect(),
             data: (0..host_count)
-                .map(|_|  ringbuffer::FixedRingBuffer::new(capacity))
+                .map(|_| ringbuffer::FixedRingBuffer::new(capacity))
                 .collect(),
             capacity,
             idx: vec![0; host_count],
@@ -96,7 +96,12 @@ impl App {
         ]
     }
     fn y_axis_bounds(&self) -> [f64; 2] {
-        let iter = self.data.iter().flatten().map(|v| v.1);
+        let iter = self
+            .data
+            .iter()
+            .map(|b| b.as_slice())
+            .flatten()
+            .map(|v| v.1);
         let min = iter.clone().fold(f64::INFINITY, |a, b| a.min(b));
         let max = iter.fold(0f64, |a, b| a.max(b));
         // Add a 10% buffer to the top and bottom
@@ -139,23 +144,23 @@ fn main() -> Result<()> {
 
     let (key_tx, rx) = mpsc::channel();
 
-    let mut ping_threads = vec![];
+    let mut threads = vec![];
+
+    let killed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
     for (host_id, host) in args.hosts.iter().cloned().enumerate() {
         let ping_tx = key_tx.clone();
 
-        let killed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let killed_ping = std::sync::Arc::clone(&killed);
-
         // Pump ping messages into the queue
         let ping_thread = thread::spawn(move || -> Result<()> {
             let stream = ping(host)?;
             while !killed_ping.load(Ordering::Acquire) {
-                ping_tx.send(Event::Update(stream.recv()?))?;
+                ping_tx.send(Event::Update(host_id, stream.recv()?))?;
             }
             Ok(())
         });
-        ping_threads.push(ping_thread);
+        threads.push(ping_thread);
     }
 
     // Pump keyboard messages into the queue
@@ -170,6 +175,7 @@ fn main() -> Result<()> {
         }
         Ok(())
     });
+    threads.push(key_thread);
 
     loop {
         match rx.recv()? {
@@ -190,7 +196,6 @@ fn main() -> Result<()> {
                                 .as_ref(),
                         )
                         .split(f.size());
-
                     for (((host_id, host), stats), &style) in args
                         .hosts
                         .iter()
@@ -241,36 +246,36 @@ fn main() -> Result<()> {
                             header_layout[3],
                         );
                     }
-
-                    let datasets: Vec<_> = app
-                        .data
-                        .iter()
-                        .zip(&app.styles)
-                        .map(|(data, &style)| {
-                            Dataset::default()
-                                .marker(symbols::Marker::Braille)
-                                .style(style)
-                                .graph_type(GraphType::Line)
-                                .data(data.as_slice())
-                        })
-                        .collect();
-
-                    let y_axis_bounds = app.y_axis_bounds();
-
-                    let chart = Chart::new(datasets)
-                        .block(Block::default().borders(Borders::NONE))
-                        .x_axis(
-                            Axis::default()
-                                .style(Style::default().fg(Color::Gray))
-                                .bounds(app.x_axis_bounds()),
-                        )
-                        .y_axis(
-                            Axis::default()
-                                .style(Style::default().fg(Color::Gray))
-                                .bounds(y_axis_bounds)
-                                .labels(app.y_axis_labels(y_axis_bounds)),
-                        );
-                    f.render_widget(chart, chunks[args.hosts.len()]);
+                    //
+                    // let datasets: Vec<_> = app
+                    //     .data
+                    //     .iter()
+                    //     .zip(&app.styles)
+                    //     .map(|(data, &style)| {
+                    //         Dataset::default()
+                    //             .marker(symbols::Marker::Braille)
+                    //             .style(style)
+                    //             .graph_type(GraphType::Line)
+                    //             .data(data.as_slice())
+                    //     })
+                    //     .collect();
+                    //
+                    // let y_axis_bounds = app.y_axis_bounds();
+                    //
+                    // let chart = Chart::new(datasets)
+                    //     .block(Block::default().borders(Borders::NONE))
+                    //     .x_axis(
+                    //         Axis::default()
+                    //             .style(Style::default().fg(Color::Gray))
+                    //             .bounds(app.x_axis_bounds()),
+                    //     )
+                    //     .y_axis(
+                    //         Axis::default()
+                    //             .style(Style::default().fg(Color::Gray))
+                    //             .bounds(y_axis_bounds)
+                    //             .labels(app.y_axis_labels(y_axis_bounds)),
+                    //     );
+                    // f.render_widget(chart, chunks[args.hosts.len()]);
                 })?;
             }
             Event::Input(input) => match input.code {
@@ -287,8 +292,9 @@ fn main() -> Result<()> {
         }
     }
 
-    let _ = ping_thread.join().unwrap()?;
-    let _ = key_thread.join().unwrap()?;
+    for thread in threads {
+        thread.join().unwrap()?;
+    }
 
     disable_raw_mode()?;
     execute!(
