@@ -122,7 +122,7 @@ dependencies = [
 
 [[package]]
 name = "gping"
-version = "0.1.7"
+version = "0.1.8-alpha.0"
 dependencies = [
  "anyhow",
  "crossterm",
