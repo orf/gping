@@ -42,16 +42,19 @@ Just run `gping [host]`.
 
 ```bash
 $ gping --help
-gping 0.1.0
+gping 0.1.7
 Ping, but with a graph.
 
 USAGE:
-    gping <host>
+    gping [OPTIONS] <hosts>...
 
 FLAGS:
     -h, --help       Prints help information
     -V, --version    Prints version information
 
+OPTIONS:
+    -b, --buffer <buffer>    Determines the number pings to display. [default: 100]
+
 ARGS:
-    <host>    Host or IP to ping
+    <hosts>...    Hosts or IPs to ping
 ```
