@@ -22,7 +22,10 @@ Table of Contents
 
 ## Homebrew (MacOS + Linux)
 
-`brew tap orf/brew`, then `brew install gping`
+```bash
+brew tap orf/brew
+brew install gping
+```
 
 ## Binaries (Windows)
 
@@ -37,7 +40,7 @@ and move it to a directory on your `PATH`.
 
 Just run `gping [host]`.
 
-```
+```bash
 $ gping --help
 gping 0.1.0
 Ping, but with a graph.
