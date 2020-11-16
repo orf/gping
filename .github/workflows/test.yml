@@ -1,6 +1,7 @@
 on:
   push:
     tags:
+      - v*
     branches:
       - master
   pull_request:
