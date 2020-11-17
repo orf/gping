@@ -23,7 +23,7 @@ Table of Contents
 ## Homebrew (MacOS + Linux)
 
 ```bash
-brew install orf/brew/gping
+brew install gping
 ```
 
 ## Binaries (Windows)
