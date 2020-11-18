@@ -20,10 +20,16 @@ Table of Contents
 
 **FYI:** The old Python version can be found under the [`python` tag](https://github.com/orf/gping/tree/python).
 
-## Homebrew (MacOS + Linux)
+## Homebrew (MacOS)
 
 ```bash
 brew install gping
+```
+
+## Homebrew (Linux)
+
+```bash
+brew install orf/brew/gping
 ```
 
 ## Binaries (Windows)
