@@ -130,6 +130,13 @@ enum Event {
     Input(KeyEvent),
 }
 
+pub fn clone_ping(ping: &PingResult) -> PingResult {
+    match ping {
+        PingResult::Pong(r) => PingResult::Pong(*r),
+        PingResult::Timeout => PingResult::Timeout,
+    }
+}
+
 fn main() -> Result<()> {
     let args = Args::from_args();
     let mut app = App::new(args.hosts.len(), args.buffer);
@@ -142,21 +149,43 @@ fn main() -> Result<()> {
 
     terminal.clear()?;
 
-    let (key_tx, rx) = mpsc::channel();
+    let (tx, rx) = mpsc::channel();
 
     let mut threads = vec![];
-
-    let killed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let host_pongs = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
+        usize,
+        Vec<PingResult>,
+    >::new()));
+    let host_iterations = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
+        usize,
+        usize,
+    >::new()));
+    let killed_signal = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let hosts_len = args.hosts.len();
 
     for (host_id, host) in args.hosts.iter().cloned().enumerate() {
-        let ping_tx = key_tx.clone();
-
-        let killed_ping = std::sync::Arc::clone(&killed);
+        let ping_tx = tx.clone();
+        let host_pongs = std::sync::Arc::clone(&host_pongs);
+        let host_iterations = std::sync::Arc::clone(&host_iterations);
+        let killed_signal = std::sync::Arc::clone(&killed_signal);
         // Pump ping messages into the queue
         let ping_thread = thread::spawn(move || -> Result<()> {
             let stream = ping(host)?;
-            while !killed_ping.load(Ordering::Acquire) {
-                ping_tx.send(Event::Update(host_id, stream.recv()?))?;
+            let mut iteration = 0;
+            while !killed_signal.load(Ordering::Acquire) {
+                let pong = stream.recv()?;
+                ping_tx.send(Event::Update(host_id, clone_ping(&pong)))?;
+                let mut host_pongs = host_pongs.lock().unwrap();
+                let mut host_iterations = host_iterations.lock().unwrap();
+                host_pongs
+                    .entry(iteration)
+                    .and_modify(|vec| vec.push(pong))
+                    .or_insert(Vec::with_capacity(hosts_len));
+                host_iterations
+                    .entry(host_id)
+                    .and_modify(|e| *e = iteration)
+                    .or_insert(iteration);
+                iteration += 1;
             }
             Ok(())
         });
@@ -164,12 +193,12 @@ fn main() -> Result<()> {
     }
 
     // Pump keyboard messages into the queue
-    let killed_thread = std::sync::Arc::clone(&killed);
+    let killed_thread = std::sync::Arc::clone(&killed_signal);
     let key_thread = thread::spawn(move || -> Result<()> {
         while !killed_thread.load(Ordering::Acquire) {
             if event::poll(Duration::from_secs(1))? {
                 if let CEvent::Key(key) = event::read()? {
-                    key_tx.send(Event::Input(key))?;
+                    tx.send(Event::Input(key))?;
                 }
             }
         }
@@ -177,6 +206,7 @@ fn main() -> Result<()> {
     });
     threads.push(key_thread);
 
+    let host_iterations = std::sync::Arc::clone(&host_iterations);
     loop {
         match rx.recv()? {
             Event::Update(host_id, ping_result) => {
@@ -196,6 +226,7 @@ fn main() -> Result<()> {
                                 .as_ref(),
                         )
                         .split(f.size());
+                    let host_iterations = host_iterations.lock().unwrap();
                     for (((host_id, host), stats), &style) in args
                         .hosts
                         .iter()
@@ -207,10 +238,11 @@ fn main() -> Result<()> {
                             .direction(Direction::Horizontal)
                             .constraints(
                                 [
-                                    Constraint::Percentage(25),
-                                    Constraint::Percentage(25),
-                                    Constraint::Percentage(25),
-                                    Constraint::Percentage(25),
+                                    Constraint::Percentage(20),
+                                    Constraint::Percentage(20),
+                                    Constraint::Percentage(20),
+                                    Constraint::Percentage(20),
+                                    Constraint::Percentage(20),
                                 ]
                                 .as_ref(),
                             )
@@ -244,6 +276,15 @@ fn main() -> Result<()> {
                             ))
                             .style(style),
                             header_layout[3],
+                        );
+
+                        f.render_widget(
+                            Paragraph::new(format!(
+                                "iteration {:?}",
+                                host_iterations.get(&host_id).unwrap_or(&0)
+                            ))
+                            .style(style),
+                            header_layout[4],
                         );
                     }
 
@@ -280,11 +321,11 @@ fn main() -> Result<()> {
             }
             Event::Input(input) => match input.code {
                 KeyCode::Char('q') | KeyCode::Esc => {
-                    killed.store(true, Ordering::Release);
+                    killed_signal.store(true, Ordering::Release);
                     break;
                 }
                 KeyCode::Char('c') if input.modifiers == KeyModifiers::CONTROL => {
-                    killed.store(true, Ordering::Release);
+                    killed_signal.store(true, Ordering::Release);
                     break;
                 }
                 _ => {}
