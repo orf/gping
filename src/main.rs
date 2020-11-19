@@ -167,7 +167,7 @@ fn main() -> Result<()> {
     let killed_thread = std::sync::Arc::clone(&killed);
     let key_thread = thread::spawn(move || -> Result<()> {
         while !killed_thread.load(Ordering::Acquire) {
-            if event::poll(Duration::from_secs(1))? {
+            if event::poll(Duration::from_secs(0))? {
                 if let CEvent::Key(key) = event::read()? {
                     key_tx.send(Event::Input(key))?;
                 }
