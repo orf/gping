@@ -209,7 +209,7 @@ fn main() -> Result<()> {
         let key_tx = tx.clone();
         let key_thread = thread::spawn(move || -> Result<()> {
             while !killed_signal.load(Ordering::Acquire) {
-                if event::poll(Duration::from_secs(1))? {
+                if event::poll(Duration::from_secs(0))? {
                     if let CEvent::Key(key) = event::read()? {
                         key_tx.send(Event::Input(key))?;
                     }
@@ -277,66 +277,68 @@ fn main() -> Result<()> {
                                 .as_ref(),
                         )
                         .split(f.size());
-                    let host_iterations = host_iterations.lock().unwrap();
-                    for (((host_id, host), stats), &style) in args
-                        .hosts
-                        .iter()
-                        .enumerate()
-                        .zip(app.stats())
-                        .zip(&app.styles)
                     {
-                        let header_layout = Layout::default()
-                            .direction(Direction::Horizontal)
-                            .constraints(
-                                [
-                                    Constraint::Percentage(20),
-                                    Constraint::Percentage(20),
-                                    Constraint::Percentage(20),
-                                    Constraint::Percentage(20),
-                                    Constraint::Percentage(20),
-                                ]
-                                .as_ref(),
-                            )
-                            .split(chunks[host_id]);
+                        let host_iterations = host_iterations.lock().unwrap();
+                        for (((host_id, host), stats), &style) in args
+                            .hosts
+                            .iter()
+                            .enumerate()
+                            .zip(app.stats())
+                            .zip(&app.styles)
+                        {
+                            let header_layout = Layout::default()
+                                .direction(Direction::Horizontal)
+                                .constraints(
+                                    [
+                                        Constraint::Percentage(20),
+                                        Constraint::Percentage(20),
+                                        Constraint::Percentage(20),
+                                        Constraint::Percentage(20),
+                                        Constraint::Percentage(20),
+                                    ]
+                                    .as_ref(),
+                                )
+                                .split(chunks[host_id]);
 
-                        f.render_widget(
-                            Paragraph::new(format!("Pinging {}", host)).style(style),
-                            header_layout[0],
-                        );
+                            f.render_widget(
+                                Paragraph::new(format!("Pinging {}", host)).style(style),
+                                header_layout[0],
+                            );
 
-                        f.render_widget(
-                            Paragraph::new(format!(
-                                "min {:?}",
-                                Duration::from_micros(stats.minimum().unwrap_or(0))
-                            ))
-                            .style(style),
-                            header_layout[1],
-                        );
-                        f.render_widget(
-                            Paragraph::new(format!(
-                                "max {:?}",
-                                Duration::from_micros(stats.maximum().unwrap_or(0))
-                            ))
-                            .style(style),
-                            header_layout[2],
-                        );
-                        f.render_widget(
-                            Paragraph::new(format!(
-                                "p95 {:?}",
-                                Duration::from_micros(stats.percentile(95.0).unwrap_or(0))
-                            ))
-                            .style(style),
-                            header_layout[3],
-                        );
+                            f.render_widget(
+                                Paragraph::new(format!(
+                                    "min {:?}",
+                                    Duration::from_micros(stats.minimum().unwrap_or(0))
+                                ))
+                                .style(style),
+                                header_layout[1],
+                            );
+                            f.render_widget(
+                                Paragraph::new(format!(
+                                    "max {:?}",
+                                    Duration::from_micros(stats.maximum().unwrap_or(0))
+                                ))
+                                .style(style),
+                                header_layout[2],
+                            );
+                            f.render_widget(
+                                Paragraph::new(format!(
+                                    "p95 {:?}",
+                                    Duration::from_micros(stats.percentile(95.0).unwrap_or(0))
+                                ))
+                                .style(style),
+                                header_layout[3],
+                            );
 
-                        f.render_widget(
-                            Paragraph::new(format!(
-                                "iteration {:?}",
-                                host_iterations.get(&host_id).unwrap_or(&0)
-                            ))
-                            .style(style),
-                            header_layout[4],
-                        );
+                            f.render_widget(
+                                Paragraph::new(format!(
+                                    "iteration {:?}",
+                                    host_iterations.get(&host_id).unwrap_or(&0)
+                                ))
+                                .style(style),
+                                header_layout[4],
+                            );
+                        }
                     }
 
                     let datasets: Vec<_> = app
