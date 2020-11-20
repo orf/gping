@@ -257,7 +257,6 @@ fn main() -> Result<()> {
         threads.push(writer_thread);
     }
 
-    let host_iterations = std::sync::Arc::clone(&host_iterations);
     loop {
         match rx.recv()? {
             Event::Update(host_id, ping_result) => {
@@ -278,7 +277,6 @@ fn main() -> Result<()> {
                         )
                         .split(f.size());
                     {
-                        let host_iterations = host_iterations.lock().unwrap();
                         for (((host_id, host), stats), &style) in args
                             .hosts
                             .iter()
@@ -290,11 +288,10 @@ fn main() -> Result<()> {
                                 .direction(Direction::Horizontal)
                                 .constraints(
                                     [
-                                        Constraint::Percentage(20),
-                                        Constraint::Percentage(20),
-                                        Constraint::Percentage(20),
-                                        Constraint::Percentage(20),
-                                        Constraint::Percentage(20),
+                                        Constraint::Percentage(25),
+                                        Constraint::Percentage(25),
+                                        Constraint::Percentage(25),
+                                        Constraint::Percentage(25),
                                     ]
                                     .as_ref(),
                                 )
@@ -328,15 +325,6 @@ fn main() -> Result<()> {
                                 ))
                                 .style(style),
                                 header_layout[3],
-                            );
-
-                            f.render_widget(
-                                Paragraph::new(format!(
-                                    "iteration {:?}",
-                                    host_iterations.get(&host_id).unwrap_or(&0)
-                                ))
-                                .style(style),
-                                header_layout[4],
                             );
                         }
                     }
