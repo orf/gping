@@ -15,6 +15,7 @@ tui = { version = "0.12.0", features = ["crossterm"], default_features = false }
 crossterm = "0.17.7"
 anyhow = "1.0.34"
 histogram = "0.6.9"
+dns-lookup = "1.0.5"
 
 [profile.release]
 lto = true
