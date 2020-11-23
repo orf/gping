@@ -13,10 +13,11 @@ use std::io;
 use std::io::Write;
 use std::iter;
 use std::ops::Add;
+use std::process::Command;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use structopt::StructOpt;
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
@@ -28,7 +29,20 @@ use tui::{symbols, Terminal};
 #[derive(Debug, StructOpt)]
 #[structopt(name = "gping", about = "Ping, but with a graph.")]
 struct Args {
-    #[structopt(help = "Hosts or IPs to ping", required = true)]
+    #[structopt(
+        long,
+        help = "Command to run, graphing the executing time",
+        conflicts_with("hosts")
+    )]
+    watch: Option<String>,
+    #[structopt(
+        short = "n",
+        long,
+        help = "Watch interval seconds (provide partial seconds like '0.5')",
+        default_value = "2"
+    )]
+    watch_interval: f32,
+    #[structopt(help = "Hosts or IPs to ping", required_if("watch", ""))]
     hosts: Vec<String>,
     #[structopt(
         short,
@@ -49,18 +63,18 @@ struct App {
 }
 
 impl App {
-    fn new(host_count: usize, capacity: usize) -> Self {
+    fn new(thread_count: usize, capacity: usize) -> Self {
         App {
-            styles: (0..host_count)
+            styles: (0..thread_count)
                 .map(|i| Style::default().fg(Color::Indexed(i as u8 + 1)))
                 .collect(),
-            data: (0..host_count)
+            data: (0..thread_count)
                 .map(|_| ringbuffer::FixedRingBuffer::new(capacity))
                 .collect(),
             capacity,
-            idx: vec![0; host_count],
-            window_min: vec![0.0; host_count],
-            window_max: vec![capacity as f64; host_count],
+            idx: vec![0; thread_count],
+            window_min: vec![0.0; thread_count],
+            window_max: vec![capacity as f64; thread_count],
         }
     }
     fn update(&mut self, host_id: usize, item: Option<Duration>) {
@@ -125,14 +139,30 @@ impl App {
 }
 
 #[derive(Debug)]
+enum Update {
+    Result(Duration),
+    Timeout,
+}
+
+impl From<PingResult> for Update {
+    fn from(result: PingResult) -> Self {
+        match result {
+            PingResult::Pong(duration) => Update::Result(duration),
+            PingResult::Timeout => Update::Timeout,
+        }
+    }
+}
+
+#[derive(Debug)]
 enum Event {
-    Update(usize, PingResult),
+    Update(usize, Update),
     Input(KeyEvent),
 }
 
 fn main() -> Result<()> {
     let args = Args::from_args();
-    let mut app = App::new(args.hosts.len(), args.buffer);
+    let num_threads = std::cmp::max(1, args.hosts.len());
+    let mut app = App::new(num_threads, args.buffer);
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -148,19 +178,53 @@ fn main() -> Result<()> {
 
     let killed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
-    for (host_id, host) in args.hosts.iter().cloned().enumerate() {
-        let ping_tx = key_tx.clone();
+    if let Some(ref watch_cmd) = args.watch {
+        let cmd_tx = key_tx.clone();
+        let killed_cmd = std::sync::Arc::clone(&killed);
+        let mut words = watch_cmd.split_ascii_whitespace();
+        let cmd = words
+            .next()
+            .expect("Must specify a command to watch")
+            .to_string();
+        let cmd_args = words
+            .into_iter()
+            .map(|w| w.to_string())
+            .collect::<Vec<String>>();
 
-        let killed_ping = std::sync::Arc::clone(&killed);
-        // Pump ping messages into the queue
-        let ping_thread = thread::spawn(move || -> Result<()> {
-            let stream = ping(host)?;
-            while !killed_ping.load(Ordering::Acquire) {
-                ping_tx.send(Event::Update(host_id, stream.recv()?))?;
+        let interval = Duration::from_millis((args.watch_interval * 1000.0) as u64);
+
+        // Pump cmd watches into the queue
+        let cmd_thread = thread::spawn(move || -> Result<()> {
+            while !killed_cmd.load(Ordering::Acquire) {
+                let start = Instant::now();
+                let output = Command::new(&cmd).args(&cmd_args).output()?;
+                let duration = start.elapsed();
+                let update = if output.status.success() {
+                    Update::Result(duration)
+                } else {
+                    Update::Timeout
+                };
+                cmd_tx.send(Event::Update(0, update))?;
+                thread::sleep(interval);
             }
             Ok(())
         });
-        threads.push(ping_thread);
+        threads.push(cmd_thread);
+    } else {
+        for (host_id, host) in args.hosts.iter().cloned().enumerate() {
+            let ping_tx = key_tx.clone();
+
+            let killed_ping = std::sync::Arc::clone(&killed);
+            // Pump ping messages into the queue
+            let ping_thread = thread::spawn(move || -> Result<()> {
+                let stream = ping(host)?;
+                while !killed_ping.load(Ordering::Acquire) {
+                    ping_tx.send(Event::Update(host_id, stream.recv()?.into()))?;
+                }
+                Ok(())
+            });
+            threads.push(ping_thread);
+        }
     }
 
     // Pump keyboard messages into the queue
@@ -179,10 +243,10 @@ fn main() -> Result<()> {
 
     loop {
         match rx.recv()? {
-            Event::Update(host_id, ping_result) => {
-                match ping_result {
-                    PingResult::Pong(duration) => app.update(host_id, Some(duration)),
-                    PingResult::Timeout => app.update(host_id, None),
+            Event::Update(host_id, update) => {
+                match update {
+                    Update::Result(duration) => app.update(host_id, Some(duration)),
+                    Update::Timeout => app.update(host_id, None),
                 };
                 terminal.draw(|f| {
                     let chunks = Layout::default()
@@ -190,18 +254,20 @@ fn main() -> Result<()> {
                         .margin(2)
                         .constraints(
                             iter::repeat(Constraint::Length(1))
-                                .take(args.hosts.len())
+                                .take(num_threads)
                                 .chain(iter::once(Constraint::Percentage(10)))
                                 .collect::<Vec<_>>()
                                 .as_ref(),
                         )
                         .split(f.size());
-                    for (((host_id, host), stats), &style) in args
-                        .hosts
-                        .iter()
-                        .enumerate()
-                        .zip(app.stats())
-                        .zip(&app.styles)
+                    let (hosts, action) = if let Some(ref watch_cmd) = args.watch {
+                        (vec![watch_cmd.to_string()], "Running")
+                    } else {
+                        (args.hosts.clone(), "Pinging")
+                    };
+
+                    for (((host_id, host), stats), &style) in
+                        hosts.iter().enumerate().zip(app.stats()).zip(&app.styles)
                     {
                         let header_layout = Layout::default()
                             .direction(Direction::Horizontal)
@@ -217,7 +283,7 @@ fn main() -> Result<()> {
                             .split(chunks[host_id]);
 
                         f.render_widget(
-                            Paragraph::new(format!("Pinging {}", host)).style(style),
+                            Paragraph::new(format!("{} {}", action, host)).style(style),
                             header_layout[0],
                         );
 
@@ -275,7 +341,7 @@ fn main() -> Result<()> {
                                 .bounds(y_axis_bounds)
                                 .labels(app.y_axis_labels(y_axis_bounds)),
                         );
-                    f.render_widget(chart, chunks[args.hosts.len()]);
+                    f.render_widget(chart, chunks[num_threads]);
                 })?;
             }
             Event::Input(input) => match input.code {
