@@ -14,7 +14,7 @@ Table of Contents
       * [Homebrew (MacOS   Linux)](#homebrew-macos--linux)
       * [Binaries (Windows)](#binaries-windows)
       * [Cargo](#cargo)
-      * [Ubuntu/Debian](#apt-ubuntu-debian)
+      * [Ubuntu/Debian](#apt-ubuntudebian)
    * [Usage :saxophone:](#usage-saxophone)
 
 # Install :cd:
