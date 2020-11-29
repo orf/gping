@@ -19,13 +19,11 @@ Table of Contents
 
 # Install :cd:
 
-**This requires `rustc` version 1.44.0 or greater**
-
 * Homebrew: `brew install gping`
 * Linux (Homebrew): `brew install orf/brew/gping`
 * Windows/ARM: Download the latest release from [the github releases page](https://github.com/orf/gping/releases)
 * Fedora ([COPR](https://copr.fedorainfracloud.org/coprs/atim/gping/)): `sudo dnf copr enable atim/gping -y && sudo dnf install gping`
-* Cargo: `cargo install gping`
+* Cargo (**This requires `rustc` version 1.44.0 or greater**): `cargo install gping`
 * Ubuntu/Debian ([Azlux's repo](http://packages.azlux.fr/)): 
 ```bash
 echo "deb http://packages.azlux.fr/debian/ buster main" | sudo tee /etc/apt/sources.list.d/azlux.list
