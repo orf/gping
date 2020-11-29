@@ -37,6 +37,8 @@ struct Args {
         help = "Determines the number pings to display."
     )]
     buffer: usize,
+    #[structopt(short, long, help = "Optionally the file to write to.")]
+    outfile: Option<String>,
 }
 
 struct App {
@@ -130,6 +132,20 @@ enum Event {
     Input(KeyEvent),
 }
 
+pub fn clone_ping(ping: &PingResult) -> PingResult {
+    match ping {
+        PingResult::Pong(r) => PingResult::Pong(*r),
+        PingResult::Timeout => PingResult::Timeout,
+    }
+}
+
+pub fn get_value_pong(ping: &PingResult) -> u128 {
+    match ping {
+        PingResult::Pong(r) => r.as_micros(),
+        PingResult::Timeout => 0,
+    }
+}
+
 fn main() -> Result<()> {
     let args = Args::from_args();
     let mut app = App::new(args.hosts.len(), args.buffer);
@@ -142,21 +158,45 @@ fn main() -> Result<()> {
 
     terminal.clear()?;
 
-    let (key_tx, rx) = mpsc::channel();
+    let (tx, rx) = mpsc::channel();
 
+    let outfile = args.outfile.clone();
     let mut threads = vec![];
-
-    let killed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let host_pongs = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
+        usize,
+        Vec<Option<u128>>,
+    >::new()));
+    let host_iterations = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
+        usize,
+        usize,
+    >::new()));
+    let killed_signal = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let hosts_count = args.hosts.len();
 
     for (host_id, host) in args.hosts.iter().cloned().enumerate() {
-        let ping_tx = key_tx.clone();
-
-        let killed_ping = std::sync::Arc::clone(&killed);
+        let tx = tx.clone();
+        let host_pongs = std::sync::Arc::clone(&host_pongs);
+        let host_iterations = std::sync::Arc::clone(&host_iterations);
+        let killed_signal = std::sync::Arc::clone(&killed_signal);
         // Pump ping messages into the queue
         let ping_thread = thread::spawn(move || -> Result<()> {
             let stream = ping(host)?;
-            while !killed_ping.load(Ordering::Acquire) {
-                ping_tx.send(Event::Update(host_id, stream.recv()?))?;
+            let mut iteration = 0;
+            while !killed_signal.load(Ordering::Acquire) {
+                let pong = stream.recv()?;
+                tx.send(Event::Update(host_id, clone_ping(&pong)))?;
+                let mut host_pongs = host_pongs.lock().unwrap();
+                let mut host_iterations = host_iterations.lock().unwrap();
+                host_pongs
+                    .entry(iteration)
+                    .and_modify(|vec| vec[host_id] = Some(get_value_pong(&pong)))
+                    .or_insert({
+                        let mut result = vec![None; hosts_count];
+                        result[host_id] = Some(get_value_pong(&pong));
+                        result
+                    });
+                host_iterations.insert(host_id, iteration);
+                iteration += 1;
             }
             Ok(())
         });
@@ -164,18 +204,58 @@ fn main() -> Result<()> {
     }
 
     // Pump keyboard messages into the queue
-    let killed_thread = std::sync::Arc::clone(&killed);
-    let key_thread = thread::spawn(move || -> Result<()> {
-        while !killed_thread.load(Ordering::Acquire) {
-            if event::poll(Duration::from_secs(1))? {
-                if let CEvent::Key(key) = event::read()? {
-                    key_tx.send(Event::Input(key))?;
+    {
+        let killed_signal = std::sync::Arc::clone(&killed_signal);
+        let key_tx = tx.clone();
+        let key_thread = thread::spawn(move || -> Result<()> {
+            while !killed_signal.load(Ordering::Acquire) {
+                if event::poll(Duration::from_secs(0))? {
+                    if let CEvent::Key(key) = event::read()? {
+                        key_tx.send(Event::Input(key))?;
+                    }
                 }
             }
-        }
-        Ok(())
-    });
-    threads.push(key_thread);
+            Ok(())
+        });
+        threads.push(key_thread);
+    }
+
+    if let Some(outfile) = outfile {
+        let killed_signal = std::sync::Arc::clone(&killed_signal);
+        let writer_thread = thread::spawn(move || -> Result<()> {
+            let mut iteration = 0;
+            let host_pongs = std::sync::Arc::clone(&host_pongs);
+            let file = std::fs::OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(&outfile)?;
+            let mut bufwriter = std::io::BufWriter::new(file);
+            while !killed_signal.load(Ordering::Acquire) {
+                let mut host_pongs = host_pongs.lock().unwrap();
+                let should_write = host_pongs
+                    .get(&iteration)
+                    .map(|pongs| pongs.iter().fold(true, |acc, x| acc && x.is_some()))
+                    .unwrap_or(false);
+                if should_write {
+                    // SAFETY: We have checked above that this is true.
+                    let result = host_pongs.remove(&iteration).unwrap();
+                    let csv_row = result
+                        .iter()
+                        // SAFETY: We have checked that they all contain something.
+                        .map(|x| x.unwrap())
+                        .map(|x| format!("{},", x))
+                        .fold(format!("{},", iteration), |acc, x| acc + &x)
+                        + "\n";
+                    bufwriter.write_all(csv_row.as_bytes())?;
+                    iteration += 1;
+                    bufwriter.flush()?;
+                }
+            }
+            // Go through the entire thing and write everything else.
+            Ok(())
+        });
+        threads.push(writer_thread);
+    }
 
     loop {
         match rx.recv()? {
@@ -196,55 +276,57 @@ fn main() -> Result<()> {
                                 .as_ref(),
                         )
                         .split(f.size());
-                    for (((host_id, host), stats), &style) in args
-                        .hosts
-                        .iter()
-                        .enumerate()
-                        .zip(app.stats())
-                        .zip(&app.styles)
                     {
-                        let header_layout = Layout::default()
-                            .direction(Direction::Horizontal)
-                            .constraints(
-                                [
-                                    Constraint::Percentage(25),
-                                    Constraint::Percentage(25),
-                                    Constraint::Percentage(25),
-                                    Constraint::Percentage(25),
-                                ]
-                                .as_ref(),
-                            )
-                            .split(chunks[host_id]);
+                        for (((host_id, host), stats), &style) in args
+                            .hosts
+                            .iter()
+                            .enumerate()
+                            .zip(app.stats())
+                            .zip(&app.styles)
+                        {
+                            let header_layout = Layout::default()
+                                .direction(Direction::Horizontal)
+                                .constraints(
+                                    [
+                                        Constraint::Percentage(25),
+                                        Constraint::Percentage(25),
+                                        Constraint::Percentage(25),
+                                        Constraint::Percentage(25),
+                                    ]
+                                    .as_ref(),
+                                )
+                                .split(chunks[host_id]);
 
-                        f.render_widget(
-                            Paragraph::new(format!("Pinging {}", host)).style(style),
-                            header_layout[0],
-                        );
+                            f.render_widget(
+                                Paragraph::new(format!("Pinging {}", host)).style(style),
+                                header_layout[0],
+                            );
 
-                        f.render_widget(
-                            Paragraph::new(format!(
-                                "min {:?}",
-                                Duration::from_micros(stats.minimum().unwrap_or(0))
-                            ))
-                            .style(style),
-                            header_layout[1],
-                        );
-                        f.render_widget(
-                            Paragraph::new(format!(
-                                "max {:?}",
-                                Duration::from_micros(stats.maximum().unwrap_or(0))
-                            ))
-                            .style(style),
-                            header_layout[2],
-                        );
-                        f.render_widget(
-                            Paragraph::new(format!(
-                                "p95 {:?}",
-                                Duration::from_micros(stats.percentile(95.0).unwrap_or(0))
-                            ))
-                            .style(style),
-                            header_layout[3],
-                        );
+                            f.render_widget(
+                                Paragraph::new(format!(
+                                    "min {:?}",
+                                    Duration::from_micros(stats.minimum().unwrap_or(0))
+                                ))
+                                .style(style),
+                                header_layout[1],
+                            );
+                            f.render_widget(
+                                Paragraph::new(format!(
+                                    "max {:?}",
+                                    Duration::from_micros(stats.maximum().unwrap_or(0))
+                                ))
+                                .style(style),
+                                header_layout[2],
+                            );
+                            f.render_widget(
+                                Paragraph::new(format!(
+                                    "p95 {:?}",
+                                    Duration::from_micros(stats.percentile(95.0).unwrap_or(0))
+                                ))
+                                .style(style),
+                                header_layout[3],
+                            );
+                        }
                     }
 
                     let datasets: Vec<_> = app
@@ -280,11 +362,11 @@ fn main() -> Result<()> {
             }
             Event::Input(input) => match input.code {
                 KeyCode::Char('q') | KeyCode::Esc => {
-                    killed.store(true, Ordering::Release);
+                    killed_signal.store(true, Ordering::Release);
                     break;
                 }
                 KeyCode::Char('c') if input.modifiers == KeyModifiers::CONTROL => {
-                    killed.store(true, Ordering::Release);
+                    killed_signal.store(true, Ordering::Release);
                     break;
                 }
                 _ => {}
