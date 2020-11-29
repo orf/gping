@@ -90,15 +90,6 @@ impl App {
         [min - min_10_percent, max + max_10_percent]
     }
 
-    fn x_axis_bounds(&self) -> [f64; 2] {
-        let window_min = self.data.iter().map(|d| d.window_min);
-        let window_max = self.data.iter().map(|d| d.window_max);
-        [
-            window_min.fold(f64::INFINITY, |a, b| a.min(b)),
-            window_max.fold(0f64, |a, b| a.max(b)),
-        ]
-    }
-
     fn y_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span> {
         // Create 7 labels for our y axis, based on the y-axis bounds we computed above.
         let min = bounds[0];
@@ -325,11 +316,7 @@ fn main() -> Result<()> {
 
                     let chart = Chart::new(datasets)
                         .block(Block::default().borders(Borders::NONE))
-                        .x_axis(
-                            Axis::default()
-                                .style(Style::default().fg(Color::Gray))
-                                .bounds(app.x_axis_bounds()),
-                        )
+                        .x_axis(Axis::default().style(Style::default().fg(Color::Gray)))
                         .y_axis(
                             Axis::default()
                                 .style(Style::default().fg(Color::Gray))
