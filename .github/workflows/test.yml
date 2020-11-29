@@ -105,7 +105,7 @@ jobs:
         run: |
           strip target/${{ matrix.target }}/release/gping
           cd target/${{ matrix.target }}/release/
-          tar czvf ../../../${{ matrix.name }} gping
+          tar czvf ../../../${{ matrix.target }} gping
           cd -
 #      - name: Publish
 #        uses: softprops/action-gh-release@v1
