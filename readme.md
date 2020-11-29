@@ -38,6 +38,15 @@ brew install orf/brew/gping
 Download the latest release from [the github releases page](https://github.com/orf/gping/releases). Extract it 
 and move it to a directory on your `PATH`.
 
+## Packaging status (Linux)
+
+- Fedora ([COPR](https://copr.fedorainfracloud.org/coprs/atim/gping/)):
+
+```
+sudo dnf copr enable atim/gping -y
+sudo dnf install gping
+```
+
 ## Cargo
 
 `cargo install gping`
