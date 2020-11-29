@@ -10,9 +10,9 @@ description = "Ping, but with a graph."
 [dependencies]
 pinger = "0.1.8"
 structopt = "0.3.20"
-tui = { version = "0.12.0", features = ["crossterm"], default_features = false }
+tui = { version = "0.13.0", features = ["crossterm"], default_features = false }
 # tui uses crossterm 0.17.7
-crossterm = "0.17.7"
+crossterm = "0.18.0"
 anyhow = "1.0.34"
 histogram = "0.6.9"
 dns-lookup = "1.0.5"
