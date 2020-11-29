@@ -14,6 +14,7 @@ Table of Contents
       * [Homebrew (MacOS   Linux)](#homebrew-macos--linux)
       * [Binaries (Windows)](#binaries-windows)
       * [Cargo](#cargo)
+      * [Ubuntu/Debian](#apt-ubuntudebian)
    * [Usage :saxophone:](#usage-saxophone)
 
 # Install :cd:
@@ -40,6 +41,16 @@ and move it to a directory on your `PATH`.
 ## Cargo
 
 `cargo install gping`
+
+## APT (Ubuntu/Debian)
+Third party repository ([Azlux's one](http://packages.azlux.fr/)) for amd64
+
+```bash
+echo "deb http://packages.azlux.fr/debian/ buster main" | sudo tee /etc/apt/sources.list.d/azlux.list
+wget -qO - https://azlux.fr/repo.gpg.key | sudo apt-key add -
+apt update
+apt install gping
+```
 
 # Usage :saxophone:
 
