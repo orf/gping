@@ -1,6 +1,6 @@
 mod ringbuffer;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use crossterm::event::{KeyEvent, KeyModifiers};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event as CEvent, KeyCode},
@@ -10,9 +10,11 @@ use crossterm::{
 use dns_lookup::lookup_host;
 use histogram::Histogram;
 use pinger::{ping, PingResult};
+use std::collections::HashMap;
 use std::io;
 use std::io::Write;
 use std::iter;
+use std::net::IpAddr;
 use std::ops::Add;
 use std::process::Command;
 use std::sync::atomic::Ordering;
@@ -61,6 +63,7 @@ struct App {
     idx: Vec<i64>,
     window_min: Vec<f64>,
     window_max: Vec<f64>,
+    map_host_ip: HashMap<String, String>,
 }
 
 impl App {
@@ -76,6 +79,7 @@ impl App {
             idx: vec![0; thread_count],
             window_min: vec![0.0; thread_count],
             window_max: vec![capacity as f64; thread_count],
+            map_host_ip: HashMap::new(),
         }
     }
     fn update(&mut self, host_id: usize, item: Option<Duration>) {
@@ -137,6 +141,17 @@ impl App {
             .map(|i| Span::raw(format!("{:?}", duration.add(increment * i))))
             .collect()
     }
+    fn get_hosts_ipaddr(&mut self, hosts: &Vec<String>) -> Result<()> {
+        for (_host_id, host) in hosts.iter().cloned().enumerate() {
+            let ipaddr: Vec<IpAddr> = match lookup_host(&host) {
+                Ok(ip) => ip,
+                Err(_) => return Err(anyhow!("Could not resolve hostname {}", host)),
+            };
+            let _ipaddr = ipaddr.first();
+            self.map_host_ip.insert(host, _ipaddr.unwrap().to_string());
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -160,21 +175,11 @@ enum Event {
     Input(KeyEvent),
 }
 
-fn resolve_hosts(hosts: &Vec<String>) -> Result<()> {
-    for (_host_id, host) in hosts.iter().cloned().enumerate() {
-        match lookup_host(&host) {
-            Ok(_) => (),
-            Err(err) => return Err(anyhow!("Could not resolve hostname {}", host).context(err)),
-        };
-    }
-    Ok(())
-}
-
 fn main() -> Result<()> {
     let args = Args::from_args();
     let num_threads = std::cmp::max(1, args.hosts.len());
     let mut app = App::new(num_threads, args.buffer);
-    resolve_hosts(&args.hosts)?;
+    app.get_hosts_ipaddr(&args.hosts)?;
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -295,7 +300,12 @@ fn main() -> Result<()> {
                             .split(chunks[host_id]);
 
                         let mut ping_text = format!("{} {}", action, host);
-                        let s = format!(" ({})", host);
+                        let real_host = match app.map_host_ip.get::<String>(&host) {
+                            Some(ip) => ip,
+                            _ => host,
+                        }
+                        .to_owned();
+                        let s = format!(" ({})", real_host);
                         ping_text.push_str(&s.to_string());
 
                         f.render_widget(Paragraph::new(ping_text).style(style), header_layout[0]);
