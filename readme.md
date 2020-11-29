@@ -21,40 +21,12 @@ Table of Contents
 
 **This requires `rustc` version 1.44.0 or greater**
 
-## Homebrew (MacOS)
-
-```bash
-brew install gping
-```
-
-## Homebrew (Linux)
-
-```bash
-brew install orf/brew/gping
-```
-
-## Binaries (Windows and ARM)
-
-Download the latest release from [the github releases page](https://github.com/orf/gping/releases). Extract it 
-and move it to a directory on your `PATH`.
-
-## Packaging status (Linux)
-
-- Fedora ([COPR](https://copr.fedorainfracloud.org/coprs/atim/gping/)):
-
-```
-sudo dnf copr enable atim/gping -y
-sudo dnf install gping
-```
-
-## Cargo
-
-`cargo install gping`
-
-## APT (Ubuntu/Debian)
-
-Third party repository ([Azlux's one](http://packages.azlux.fr/)) for amd64
-
+* Homebrew: `brew install gping`
+* Linux (Homebrew): `brew install orf/brew/gping`
+* Windows/ARM: Download the latest release from [the github releases page](https://github.com/orf/gping/releases)
+* Fedora (([COPR](https://copr.fedorainfracloud.org/coprs/atim/gping/))): `sudo dnf copr enable atim/gping -y && sudo dnf install gping`
+* Cargo: `cargo install gping`
+* Ubuntu/Debian ([Azlux's repo](http://packages.azlux.fr/)): 
 ```bash
 echo "deb http://packages.azlux.fr/debian/ buster main" | sudo tee /etc/apt/sources.list.d/azlux.list
 wget -qO - https://azlux.fr/repo.gpg.key | sudo apt-key add -
