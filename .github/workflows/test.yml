@@ -97,9 +97,16 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           use-cross: true
+          command: check
+          args: --target ${{ matrix.target }}
+      - uses: actions-rs/cargo@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          use-cross: true
           command: build
           args: --target ${{ matrix.target }} --release
       - name: Package
+        if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         run: |
           cd target/${{ matrix.target }}/release/
