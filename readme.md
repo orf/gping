@@ -24,7 +24,7 @@ Table of Contents
 * Homebrew: `brew install gping`
 * Linux (Homebrew): `brew install orf/brew/gping`
 * Windows/ARM: Download the latest release from [the github releases page](https://github.com/orf/gping/releases)
-* Fedora (([COPR](https://copr.fedorainfracloud.org/coprs/atim/gping/))): `sudo dnf copr enable atim/gping -y && sudo dnf install gping`
+* Fedora ([COPR](https://copr.fedorainfracloud.org/coprs/atim/gping/)): `sudo dnf copr enable atim/gping -y && sudo dnf install gping`
 * Cargo: `cargo install gping`
 * Ubuntu/Debian ([Azlux's repo](http://packages.azlux.fr/)): 
 ```bash
