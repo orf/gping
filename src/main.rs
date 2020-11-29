@@ -1,6 +1,6 @@
 mod ringbuffer;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use crossterm::event::{KeyEvent, KeyModifiers};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event as CEvent, KeyCode},
@@ -127,15 +127,16 @@ impl App {
             .map(|i| Span::raw(format!("{:?}", duration.add(increment * i))))
             .collect()
     }
-    fn get_hosts_ipaddr(&mut self, hosts: &Vec<String>) {
+    fn get_hosts_ipaddr(&mut self, hosts: &Vec<String>) -> Result<()> {
         for (_host_id, host) in hosts.iter().cloned().enumerate() {
             let ipaddr: Vec<IpAddr> = match lookup_host(&host) {
                 Ok(ip) => ip,
-                Err(_) => continue,
+                Err(_) => return Err(anyhow!("Could not resolve hostname {}", host)),
             };
             let _ipaddr = ipaddr.first();
             self.map_host_ip.insert(host, _ipaddr.unwrap().to_string());
         }
+        Ok(())
     }
 }
 
@@ -148,7 +149,7 @@ enum Event {
 fn main() -> Result<()> {
     let args = Args::from_args();
     let mut app = App::new(args.hosts.len(), args.buffer);
-    app.get_hosts_ipaddr(&args.hosts);
+    app.get_hosts_ipaddr(&args.hosts)?;
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
