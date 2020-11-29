@@ -11,10 +11,6 @@ Table of Contents
 =================
 
    * [Install :cd:](#install-cd)
-      * [Homebrew (MacOS   Linux)](#homebrew-macos)
-      * [Binaries (Windows and ARM)](#binaries-windows-and-arm)
-      * [Cargo](#cargo)
-      * [Ubuntu/Debian](#apt-ubuntudebian)
    * [Usage :saxophone:](#usage-saxophone)
 
 # Install :cd:
