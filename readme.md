@@ -19,7 +19,7 @@ Table of Contents
 
 # Install :cd:
 
-**FYI:** The old Python version can be found under the [`python` tag](https://github.com/orf/gping/tree/python).
+**This requires `rustc` version 1.44.0 or greater**
 
 ## Homebrew (MacOS)
 
