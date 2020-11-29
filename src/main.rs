@@ -325,7 +325,11 @@ fn main() -> Result<()> {
 
                     let chart = Chart::new(datasets)
                         .block(Block::default().borders(Borders::NONE))
-                        .x_axis(Axis::default().style(Style::default().fg(Color::Gray)).bounds(app.x_axis_bounds()))
+                        .x_axis(
+                            Axis::default()
+                                .style(Style::default().fg(Color::Gray))
+                                .bounds(app.x_axis_bounds()),
+                        )
                         .y_axis(
                             Axis::default()
                                 .style(Style::default().fg(Color::Gray))

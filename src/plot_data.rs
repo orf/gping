@@ -80,6 +80,6 @@ impl<'a> Into<Dataset<'a>> for &'a PlotData {
             .style(self.style)
             .graph_type(GraphType::Line)
             .data(slice)
-            // .x_axis_bounds([self.window_min, self.window_max])
+        // .x_axis_bounds([self.window_min, self.window_max])
     }
 }
