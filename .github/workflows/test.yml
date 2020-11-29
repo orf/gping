@@ -81,6 +81,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  cross_buils:
+    name: Cross-build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [armv7-linux-androideabi, armv7-unknown-linux-gnueabihf]
+    #    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --target ${{ matrix.target }}
+
   check:
     name: Check
     runs-on: ubuntu-latest
