@@ -110,7 +110,7 @@ jobs:
         shell: bash
         run: |
           cd target/${{ matrix.target }}/release/
-          tar czvf ../../../${{ matrix.target }}.tar.gz gping
+          tar czvf ../../../gping-${{ matrix.target }}.tar.gz gping
           cd -
       - name: Publish
         uses: softprops/action-gh-release@v1
