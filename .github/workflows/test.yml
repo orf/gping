@@ -87,7 +87,7 @@ jobs:
     strategy:
       matrix:
         target: [armv7-linux-androideabi, armv7-unknown-linux-gnueabihf]
-    #    if: startsWith(github.ref, 'refs/tags/')
+#    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -100,6 +100,20 @@ jobs:
           use-cross: true
           command: build
           args: --target ${{ matrix.target }} --release
+      - name: Package
+        shell: bash
+        run: |
+          strip target/${{ matrix.target }}/release/gping
+          cd target/${{ matrix.target }}/release/
+          tar czvf ../../../${{ matrix.name }} gping
+          cd -
+#      - name: Publish
+#        uses: softprops/action-gh-release@v1
+#        with:
+#          draft: false
+#          files: 'gping*'
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   check:
     name: Check
