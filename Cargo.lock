@@ -272,9 +272,9 @@ dependencies = [
 
 [[package]]
 name = "pinger"
-version = "0.2.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4c6d605d7c5c50100c08b4c565082aca0a6e9600848326ee50d094367beb559"
+checksum = "3dad8312aabad1b64e6e8984005893816bcc3a4cbab1fe91f8c23cecd4fedd1e"
 dependencies = [
  "anyhow",
  "dns-lookup",
@@ -483,8 +483,7 @@ dependencies = [
 [[package]]
 name = "tui"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d4e6c82bb967df89f20b875fa8835fab5d5622c6a5efa574a1f0b6d0aa6e8f6"
+source = "git+https://github.com/orf/tui-rs.git?branch=disjoint-bounds#c9132abace90b80e66e78ea4fdc5d6fb85b5aa43"
 dependencies = [
  "bitflags",
  "cassowary",

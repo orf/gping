@@ -1,6 +1,7 @@
 mod ringbuffer;
 
-use anyhow::{Result, anyhow};
+use crate::plot_data::PlotData;
+use anyhow::{anyhow, Result};
 use crossterm::event::{KeyEvent, KeyModifiers};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event as CEvent, KeyCode},
@@ -8,45 +9,46 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use dns_lookup::lookup_host;
-use histogram::Histogram;
 use pinger::{ping, PingResult};
-use std::collections::HashMap;
 use std::io;
 use std::io::Write;
 use std::iter;
 use std::net::IpAddr;
 use std::ops::Add;
-use std::process::Command;
-use std::sync::atomic::Ordering;
-use std::sync::mpsc;
+use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::Sender;
+use std::sync::{mpsc, Arc};
 use std::thread;
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 use structopt::StructOpt;
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
 use tui::style::{Color, Style};
 use tui::text::Span;
-use tui::widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, Paragraph};
-use tui::{symbols, Terminal};
+use tui::widgets::{Axis, Block, Borders, Chart, Dataset};
+use tui::Terminal;
+
+mod plot_data;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "gping", about = "Ping, but with a graph.")]
 struct Args {
     #[structopt(
         long,
-        help = "Command to run, graphing the executing time",
-        conflicts_with("hosts")
+        help = "Graph the execution time for a list of commands rather than pinging hosts"
     )]
-    watch: Option<String>,
+    cmd: bool,
     #[structopt(
         short = "n",
         long,
         help = "Watch interval seconds (provide partial seconds like '0.5')",
-        default_value = "2"
+        default_value = "0.5"
     )]
     watch_interval: f32,
-    #[structopt(help = "Hosts or IPs to ping", required_if("watch", ""))]
-    hosts: Vec<String>,
+    #[structopt(help = "Hosts or IPs to ping, or commands to run if --cmd is provided.")]
+    hosts_or_commands: Vec<String>,
     #[structopt(
         short,
         long,
@@ -57,68 +59,27 @@ struct Args {
 }
 
 struct App {
-    styles: Vec<Style>,
-    data: Vec<ringbuffer::FixedRingBuffer<(f64, f64)>>,
-    capacity: usize,
-    idx: Vec<i64>,
-    window_min: Vec<f64>,
-    window_max: Vec<f64>,
-    map_host_ip: HashMap<String, String>,
+    data: Vec<PlotData>,
 }
 
 impl App {
-    fn new(thread_count: usize, capacity: usize) -> Self {
-        App {
-            styles: (0..thread_count)
-                .map(|i| Style::default().fg(Color::Indexed(i as u8 + 1)))
-                .collect(),
-            data: (0..thread_count)
-                .map(|_| ringbuffer::FixedRingBuffer::new(capacity))
-                .collect(),
-            capacity,
-            idx: vec![0; thread_count],
-            window_min: vec![0.0; thread_count],
-            window_max: vec![capacity as f64; thread_count],
-            map_host_ip: HashMap::new(),
-        }
+    fn new(data: Vec<PlotData>) -> Self {
+        App { data }
     }
-    fn update(&mut self, host_id: usize, item: Option<Duration>) {
-        self.idx[host_id] += 1;
-        let data = &mut self.data[host_id];
-        if data.len() >= self.capacity {
-            self.window_min[host_id] += 1_f64;
-            self.window_max[host_id] += 1_f64;
-        }
-        match item {
-            Some(dur) => data.push((self.idx[host_id] as f64, dur.as_micros() as f64)),
-            None => data.push((self.idx[host_id] as f64, 0_f64)),
-        }
-    }
-    fn stats(&self) -> Vec<Histogram> {
-        self.data
-            .iter()
-            .map(|data| {
-                let mut hist = Histogram::new();
 
-                for (_, val) in data.iter().filter(|v| v.1 != 0f64) {
-                    hist.increment(*val as u64).unwrap_or(());
-                }
+    fn update(&mut self, host_idx: usize, item: Option<Duration>) {
+        let host = &mut self.data[host_idx];
+        host.update(item);
+    }
 
-                hist
-            })
-            .collect()
-    }
-    fn x_axis_bounds(&self) -> [f64; 2] {
-        [
-            self.window_min.iter().fold(f64::INFINITY, |a, &b| a.min(b)),
-            self.window_max.iter().fold(0f64, |a, &b| a.max(b)),
-        ]
-    }
     fn y_axis_bounds(&self) -> [f64; 2] {
+        // Find the Y axis bounds for our chart.
+        // This is trickier than the x-axis. We iterate through all our PlotData structs
+        // and find the min/max of all the values. Then we add a 10% buffer to them.
         let iter = self
             .data
             .iter()
-            .map(|b| b.as_slice())
+            .map(|b| b.data.as_slice())
             .flatten()
             .map(|v| v.1);
         let min = iter.clone().fold(f64::INFINITY, |a, b| a.min(b));
@@ -128,8 +89,9 @@ impl App {
         let min_10_percent = (min * 10_f64) / 100_f64;
         [min - min_10_percent, max + max_10_percent]
     }
+
     fn y_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span> {
-        // Split into 5 sections
+        // Create 7 labels for our y axis, based on the y-axis bounds we computed above.
         let min = bounds[0];
         let max = bounds[1];
 
@@ -141,30 +103,21 @@ impl App {
             .map(|i| Span::raw(format!("{:?}", duration.add(increment * i))))
             .collect()
     }
-    fn get_hosts_ipaddr(&mut self, hosts: &Vec<String>) -> Result<()> {
-        for (_host_id, host) in hosts.iter().cloned().enumerate() {
-            let ipaddr: Vec<IpAddr> = match lookup_host(&host) {
-                Ok(ip) => ip,
-                Err(_) => return Err(anyhow!("Could not resolve hostname {}", host)),
-            };
-            let _ipaddr = ipaddr.first();
-            self.map_host_ip.insert(host, _ipaddr.unwrap().to_string());
-        }
-        Ok(())
-    }
 }
 
 #[derive(Debug)]
 enum Update {
     Result(Duration),
     Timeout,
+    Unknown,
 }
 
 impl From<PingResult> for Update {
     fn from(result: PingResult) -> Self {
         match result {
-            PingResult::Pong(duration) => Update::Result(duration),
-            PingResult::Timeout => Update::Timeout,
+            PingResult::Pong(duration, _) => Update::Result(duration),
+            PingResult::Timeout(_) => Update::Timeout,
+            PingResult::Unknown(_) => Update::Unknown,
         }
     }
 }
@@ -175,11 +128,91 @@ enum Event {
     Input(KeyEvent),
 }
 
+fn start_cmd_thread(
+    watch_cmd: &str,
+    host_id: usize,
+    watch_interval: f32,
+    cmd_tx: Sender<Event>,
+    kill_event: Arc<AtomicBool>,
+) -> JoinHandle<Result<()>> {
+    let mut words = watch_cmd.split_ascii_whitespace();
+    let cmd = words
+        .next()
+        .expect("Must specify a command to watch")
+        .to_string();
+    let cmd_args = words
+        .into_iter()
+        .map(|w| w.to_string())
+        .collect::<Vec<String>>();
+
+    let interval = Duration::from_millis((watch_interval * 1000.0) as u64);
+
+    // Pump cmd watches into the queue
+    thread::spawn(move || -> Result<()> {
+        while !kill_event.load(Ordering::Acquire) {
+            let start = Instant::now();
+            let mut child = Command::new(&cmd)
+                .args(&cmd_args)
+                .stderr(Stdio::null())
+                .stdout(Stdio::null())
+                .spawn()?;
+            let status = child.wait()?;
+            let duration = start.elapsed();
+            let update = if status.success() {
+                Update::Result(duration)
+            } else {
+                Update::Timeout
+            };
+            cmd_tx.send(Event::Update(host_id, update))?;
+            thread::sleep(interval);
+        }
+        Ok(())
+    })
+}
+
+fn start_ping_thread(
+    host: String,
+    host_id: usize,
+    ping_tx: Sender<Event>,
+    kill_event: Arc<AtomicBool>,
+) -> JoinHandle<Result<()>> {
+    // Pump ping messages into the queue
+    thread::spawn(move || -> Result<()> {
+        let stream = ping(host)?;
+        while !kill_event.load(Ordering::Acquire) {
+            ping_tx.send(Event::Update(host_id, stream.recv()?.into()))?;
+        }
+        Ok(())
+    })
+}
+
+fn get_host_ipaddr(host: &str) -> Result<String> {
+    let ipaddr: Vec<IpAddr> = match lookup_host(host) {
+        Ok(ip) => ip,
+        Err(_) => return Err(anyhow!("Could not resolve hostname {}", host)),
+    };
+    let ipaddr = ipaddr.first();
+    Ok(ipaddr.unwrap().to_string())
+}
+
 fn main() -> Result<()> {
     let args = Args::from_args();
-    let num_threads = std::cmp::max(1, args.hosts.len());
-    let mut app = App::new(num_threads, args.buffer);
-    app.get_hosts_ipaddr(&args.hosts)?;
+
+    let mut data = vec![];
+
+    for (idx, host_or_cmd) in args.hosts_or_commands.iter().enumerate() {
+        let display = match args.cmd {
+            true => host_or_cmd.to_string(),
+            false => format!("{} ({})", host_or_cmd, get_host_ipaddr(host_or_cmd)?),
+        };
+        data.push(PlotData::new(
+            display,
+            args.buffer,
+            Style::default().fg(Color::Indexed(idx as u8 + 1)),
+        ));
+    }
+
+    let mut app = App::new(data);
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -195,52 +228,23 @@ fn main() -> Result<()> {
 
     let killed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
-    if let Some(ref watch_cmd) = args.watch {
-        let cmd_tx = key_tx.clone();
-        let killed_cmd = std::sync::Arc::clone(&killed);
-        let mut words = watch_cmd.split_ascii_whitespace();
-        let cmd = words
-            .next()
-            .expect("Must specify a command to watch")
-            .to_string();
-        let cmd_args = words
-            .into_iter()
-            .map(|w| w.to_string())
-            .collect::<Vec<String>>();
-
-        let interval = Duration::from_millis((args.watch_interval * 1000.0) as u64);
-
-        // Pump cmd watches into the queue
-        let cmd_thread = thread::spawn(move || -> Result<()> {
-            while !killed_cmd.load(Ordering::Acquire) {
-                let start = Instant::now();
-                let output = Command::new(&cmd).args(&cmd_args).output()?;
-                let duration = start.elapsed();
-                let update = if output.status.success() {
-                    Update::Result(duration)
-                } else {
-                    Update::Timeout
-                };
-                cmd_tx.send(Event::Update(0, update))?;
-                thread::sleep(interval);
-            }
-            Ok(())
-        });
-        threads.push(cmd_thread);
-    } else {
-        for (host_id, host) in args.hosts.iter().cloned().enumerate() {
-            let ping_tx = key_tx.clone();
-
-            let killed_ping = std::sync::Arc::clone(&killed);
-            // Pump ping messages into the queue
-            let ping_thread = thread::spawn(move || -> Result<()> {
-                let stream = ping(host)?;
-                while !killed_ping.load(Ordering::Acquire) {
-                    ping_tx.send(Event::Update(host_id, stream.recv()?.into()))?;
-                }
-                Ok(())
-            });
-            threads.push(ping_thread);
+    for (host_id, host_or_cmd) in args.hosts_or_commands.iter().cloned().enumerate() {
+        if args.cmd {
+            let cmd_thread = start_cmd_thread(
+                &host_or_cmd,
+                host_id,
+                args.watch_interval,
+                key_tx.clone(),
+                std::sync::Arc::clone(&killed),
+            );
+            threads.push(cmd_thread);
+        } else {
+            threads.push(start_ping_thread(
+                host_or_cmd,
+                host_id,
+                key_tx.clone(),
+                std::sync::Arc::clone(&killed),
+            ));
         }
     }
 
@@ -264,28 +268,28 @@ fn main() -> Result<()> {
                 match update {
                     Update::Result(duration) => app.update(host_id, Some(duration)),
                     Update::Timeout => app.update(host_id, None),
+                    Update::Unknown => (),
                 };
                 terminal.draw(|f| {
+                    // Split our
                     let chunks = Layout::default()
                         .direction(Direction::Vertical)
-                        .margin(2)
+                        .margin(1)
                         .constraints(
                             iter::repeat(Constraint::Length(1))
-                                .take(num_threads)
+                                .take(app.data.len())
                                 .chain(iter::once(Constraint::Percentage(10)))
                                 .collect::<Vec<_>>()
                                 .as_ref(),
                         )
                         .split(f.size());
-                    let (hosts, action) = if let Some(ref watch_cmd) = args.watch {
-                        (vec![watch_cmd.to_string()], "Running")
-                    } else {
-                        (args.hosts.clone(), "Pinging")
-                    };
 
-                    for (((host_id, host), stats), &style) in
-                        hosts.iter().enumerate().zip(app.stats()).zip(&app.styles)
-                    {
+                    let total_chunks = chunks.len();
+
+                    let header_chunks = chunks[0..total_chunks - 1].to_owned();
+                    let chart_chunk = chunks[total_chunks - 1].to_owned();
+
+                    for (plot_data, chunk) in app.data.iter().zip(header_chunks) {
                         let header_layout = Layout::default()
                             .direction(Direction::Horizontal)
                             .constraints(
@@ -297,74 +301,30 @@ fn main() -> Result<()> {
                                 ]
                                 .as_ref(),
                             )
-                            .split(chunks[host_id]);
+                            .split(chunk);
 
-                        let mut ping_text = format!("{} {}", action, host);
-                        let real_host = match app.map_host_ip.get::<String>(&host) {
-                            Some(ip) => ip,
-                            _ => host,
+                        for (area, paragraph) in
+                            header_layout.into_iter().zip(plot_data.header_stats())
+                        {
+                            f.render_widget(paragraph, area);
                         }
-                        .to_owned();
-                        let s = format!(" ({})", real_host);
-                        ping_text.push_str(&s.to_string());
-
-                        f.render_widget(Paragraph::new(ping_text).style(style), header_layout[0]);
-
-                        f.render_widget(
-                            Paragraph::new(format!(
-                                "min {:?}",
-                                Duration::from_micros(stats.minimum().unwrap_or(0))
-                            ))
-                            .style(style),
-                            header_layout[1],
-                        );
-                        f.render_widget(
-                            Paragraph::new(format!(
-                                "max {:?}",
-                                Duration::from_micros(stats.maximum().unwrap_or(0))
-                            ))
-                            .style(style),
-                            header_layout[2],
-                        );
-                        f.render_widget(
-                            Paragraph::new(format!(
-                                "p95 {:?}",
-                                Duration::from_micros(stats.percentile(95.0).unwrap_or(0))
-                            ))
-                            .style(style),
-                            header_layout[3],
-                        );
                     }
 
-                    let datasets: Vec<_> = app
-                        .data
-                        .iter()
-                        .zip(&app.styles)
-                        .map(|(data, &style)| {
-                            Dataset::default()
-                                .marker(symbols::Marker::Braille)
-                                .style(style)
-                                .graph_type(GraphType::Line)
-                                .data(data.as_slice())
-                        })
-                        .collect();
+                    let datasets: Vec<Dataset> = app.data.iter().map(|d| d.into()).collect();
 
                     let y_axis_bounds = app.y_axis_bounds();
 
                     let chart = Chart::new(datasets)
                         .block(Block::default().borders(Borders::NONE))
-                        .x_axis(
-                            Axis::default()
-                                .style(Style::default().fg(Color::Gray))
-                                .bounds(app.x_axis_bounds()),
-                        )
+                        .x_axis(Axis::default().style(Style::default().fg(Color::Gray)))
                         .y_axis(
                             Axis::default()
                                 .style(Style::default().fg(Color::Gray))
                                 .bounds(y_axis_bounds)
                                 .labels(app.y_axis_labels(y_axis_bounds)),
                         );
-                    f.render_widget(chart, chunks[num_threads]);
+
+                    f.render_widget(chart, chart_chunk)
                 })?;
             }
             Event::Input(input) => match input.code {

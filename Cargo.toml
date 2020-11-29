@@ -9,10 +9,10 @@ description = "Ping, but with a graph."
 rust = "1.44.0"
 
 [dependencies]
-pinger = "0.2.1"
+pinger = "0.3.0"
 structopt = "0.3.20"
-tui = { version = "0.13.0", features = ["crossterm"], default_features = false }
-# tui uses crossterm 0.17.7
+# See https://github.com/fdehau/tui-rs/pull/423
+tui = { git="https://github.com/orf/tui-rs.git", branch="disjoint-bounds", features = ["crossterm"], default_features = false }
 crossterm = "0.18.0"
 anyhow = "1.0.34"
 histogram = "0.6.9"

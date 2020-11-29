@@ -3,7 +3,7 @@ use std::fmt::Debug;
 #[derive(Debug)]
 pub struct FixedRingBuffer<T> {
     buf: Vec<T>,
-    cap: usize,
+    pub cap: usize,
     head: usize,
 }
 

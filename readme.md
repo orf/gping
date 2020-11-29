@@ -58,19 +58,21 @@ Just run `gping [host]`.
 
 ```bash
 $ gping --help
-gping 0.1.7
+gping 0.1.8
 Ping, but with a graph.
 
 USAGE:
-    gping [OPTIONS] <hosts>...
+    gping [FLAGS] [OPTIONS] [hosts-or-commands]...
 
 FLAGS:
+        --cmd        Graph the execution time for a list of commands rather than pinging hosts
     -h, --help       Prints help information
     -V, --version    Prints version information
 
 OPTIONS:
-    -b, --buffer <buffer>    Determines the number pings to display. [default: 100]
+    -b, --buffer <buffer>                    Determines the number pings to display. [default: 100]
+    -n, --watch-interval <watch-interval>    Watch interval seconds (provide partial seconds like '0.5') [default: 0.5]
 
 ARGS:
-    <hosts>...    Hosts or IPs to ping
+    <hosts-or-commands>...    Hosts or IPs to ping, or commands to run if --cmd is provided.
 ```
