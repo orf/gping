@@ -17,9 +17,5 @@ anyhow = "1.0.34"
 histogram = "0.6.9"
 dns-lookup = "1.0.5"
 
-[patch.crates-io]
-# See https://github.com/fdehau/tui-rs/pull/423
-tui = { git="https://github.com/orf/tui-rs.git", branch="disjoint-bounds"}
-
 [profile.release]
 lto = true

@@ -483,7 +483,8 @@ dependencies = [
 [[package]]
 name = "tui"
 version = "0.13.0"
-source = "git+https://github.com/orf/tui-rs.git?branch=disjoint-bounds#c9132abace90b80e66e78ea4fdc5d6fb85b5aa43"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d4e6c82bb967df89f20b875fa8835fab5d5622c6a5efa574a1f0b6d0aa6e8f6"
 dependencies = [
  "bitflags",
  "cassowary",
