@@ -294,7 +294,7 @@ fn main() -> Result<()> {
                             )
                             .split(chunks[host_id]);
 
-                        let mut ping_text = format!("{} {}", action);
+                        let mut ping_text = format!("{} {}", action, host);
                         let s = format!(" ({})", host);
                         ping_text.push_str(&s.to_string());
 
