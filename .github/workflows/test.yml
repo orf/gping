@@ -102,7 +102,6 @@ jobs:
       - name: Package
         shell: bash
         run: |
-          strip target/${{ matrix.target }}/release/gping
           cd target/${{ matrix.target }}/release/
           tar czvf ../../../${{ matrix.target }} gping
           cd -

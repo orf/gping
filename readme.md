@@ -11,8 +11,8 @@ Table of Contents
 =================
 
    * [Install :cd:](#install-cd)
-      * [Homebrew (MacOS   Linux)](#homebrew-macos--linux)
-      * [Binaries (Windows)](#binaries-windows)
+      * [Homebrew (MacOS   Linux)](#homebrew-macos)
+      * [Binaries (Windows and ARM)](#binaries-windows-and-arm)
       * [Cargo](#cargo)
       * [Ubuntu/Debian](#apt-ubuntudebian)
    * [Usage :saxophone:](#usage-saxophone)
@@ -33,7 +33,7 @@ brew install gping
 brew install orf/brew/gping
 ```
 
-## Binaries (Windows)
+## Binaries (Windows and ARM)
 
 Download the latest release from [the github releases page](https://github.com/orf/gping/releases). Extract it 
 and move it to a directory on your `PATH`.
@@ -43,6 +43,7 @@ and move it to a directory on your `PATH`.
 `cargo install gping`
 
 ## APT (Ubuntu/Debian)
+
 Third party repository ([Azlux's one](http://packages.azlux.fr/)) for amd64
 
 ```bash
