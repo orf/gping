@@ -272,9 +272,9 @@ dependencies = [
 
 [[package]]
 name = "pinger"
-version = "0.1.8"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c221f86f930c243259a35275ce5f5a06228828350ff0cdf3d96e1911b6771432"
+checksum = "b4c6d605d7c5c50100c08b4c565082aca0a6e9600848326ee50d094367beb559"
 dependencies = [
  "anyhow",
  "dns-lookup",
