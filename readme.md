@@ -20,7 +20,7 @@ Table of Contents
 * Windows/ARM: Download the latest release from [the github releases page](https://github.com/orf/gping/releases)
 * Fedora ([COPR](https://copr.fedorainfracloud.org/coprs/atim/gping/)): `sudo dnf copr enable atim/gping -y && sudo dnf install gping`
 * Cargo (**This requires `rustc` version 1.44.0 or greater**): `cargo install gping`
-* Ubuntu/Debian ([Azlux's repo](http://packages.azlux.fr/)): 
+* Ubuntu/Debian ([Azlux's repo](http://packages.azlux.fr/)):
 ```bash
 echo "deb http://packages.azlux.fr/debian/ buster main" | sudo tee /etc/apt/sources.list.d/azlux.list
 wget -qO - https://azlux.fr/repo.gpg.key | sudo apt-key add -
@@ -34,7 +34,7 @@ Just run `gping [host]`.
 
 ```bash
 $ gping --help
-gping 0.1.8
+gping 1.0.2
 Ping, but with a graph.
 
 USAGE:
@@ -43,6 +43,8 @@ USAGE:
 FLAGS:
         --cmd        Graph the execution time for a list of commands rather than pinging hosts
     -h, --help       Prints help information
+    -4               Resolve ping targets to IPv4 address
+    -6               Resolve ping targets to IPv6 address
     -V, --version    Prints version information
 
 OPTIONS:
