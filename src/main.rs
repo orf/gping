@@ -56,6 +56,12 @@ struct Args {
         help = "Determines the number pings to display."
     )]
     buffer: usize,
+    /// Resolve ping targets to IPv4 address
+    #[structopt(short = "4", conflicts_with = "ipv6")]
+    ipv4: bool,
+    /// Resolve ping targets to IPv6 address
+    #[structopt(short = "6", conflicts_with = "ipv4")]
+    ipv6: bool,
 }
 
 struct App {
@@ -197,13 +203,29 @@ fn start_ping_thread(
     })
 }
 
-fn get_host_ipaddr(host: &str) -> Result<String> {
+fn get_host_ipaddr(host: &str, force_ipv4: bool, force_ipv6: bool) -> Result<String> {
     let ipaddr: Vec<IpAddr> = match lookup_host(host) {
         Ok(ip) => ip,
         Err(_) => return Err(anyhow!("Could not resolve hostname {}", host)),
     };
-    let ipaddr = ipaddr.first();
-    Ok(ipaddr.unwrap().to_string())
+    let ipaddr = if force_ipv4 {
+        ipaddr
+            .iter()
+            .filter(|ip| matches!(ip, IpAddr::V4(_)))
+            .next()
+            .ok_or_else(|| anyhow!("Could not resolve '{}' to IPv4", host))
+    } else if force_ipv6 {
+        ipaddr
+            .iter()
+            .filter(|ip| matches!(ip, IpAddr::V6(_)))
+            .next()
+            .ok_or_else(|| anyhow!("Could not resolve '{}' to IPv6", host))
+    } else {
+        ipaddr
+            .first()
+            .ok_or_else(|| anyhow!("Could not resolve '{}' to IP", host))
+    };
+    Ok(ipaddr?.to_string())
 }
 
 fn main() -> Result<()> {
@@ -214,7 +236,11 @@ fn main() -> Result<()> {
     for (idx, host_or_cmd) in args.hosts_or_commands.iter().enumerate() {
         let display = match args.cmd {
             true => host_or_cmd.to_string(),
-            false => format!("{} ({})", host_or_cmd, get_host_ipaddr(host_or_cmd)?),
+            false => format!(
+                "{} ({})",
+                host_or_cmd,
+                get_host_ipaddr(host_or_cmd, args.ipv4, args.ipv6)?
+            ),
         };
         data.push(PlotData::new(
             display,
