@@ -105,10 +105,12 @@ impl App {
         let max = bounds[1];
 
         let difference = max - min;
-        let increment = Duration::from_micros((difference / 3f64) as u64);
+        let num_labels = 7;
+        // Split difference into one chunk for each of the 7 labels
+        let increment = Duration::from_micros((difference / num_labels as f64) as u64);
         let duration = Duration::from_micros(min as u64);
 
-        (0..7)
+        (0..num_labels)
             .map(|i| Span::raw(format!("{:?}", duration.add(increment * i))))
             .collect()
     }
