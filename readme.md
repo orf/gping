@@ -29,6 +29,13 @@ wget -qO - https://azlux.fr/repo.gpg.key | sudo apt-key add -
 apt update
 apt install gping
 ```
+* Arch Linux ([AUR](https://aur.archlinux.org/packages/?O=0&SeB=nd&K=Ping%2C+but+with+a+graph&outdated=&SB=n&SO=a&PP=50&do_Search=Go)):
+```bash
+git clone https://aur.archlinux.org/gping.git
+cd gping
+makepkg -si
+# or use an AUR helper (e.g. `paru gping`)
+```
 
 # Usage :saxophone:
 
