@@ -1,73 +1,75 @@
-use crate::ringbuffer;
+use chrono::prelude::*;
 use core::option::Option;
 use core::option::Option::{None, Some};
 use core::time::Duration;
-use histogram::Histogram;
+use itertools::Itertools;
 use tui::style::Style;
 use tui::symbols;
 use tui::widgets::{Dataset, GraphType, Paragraph};
 
 pub struct PlotData {
     pub display: String,
-    pub data: ringbuffer::FixedRingBuffer<(f64, f64)>,
-    pub idx: i64,
-    pub window_min: f64,
-    pub window_max: f64,
+    pub data: Vec<(f64, f64)>,
     pub style: Style,
+    buffer: chrono::Duration,
 }
 
 impl PlotData {
-    pub fn new(display: String, capacity: usize, style: Style) -> PlotData {
+    pub fn new(display: String, buffer: u64, style: Style) -> PlotData {
         PlotData {
             display,
-            data: ringbuffer::FixedRingBuffer::new(capacity),
-            idx: 0,
-            window_min: 0.0,
-            window_max: capacity as f64,
+            data: Vec::with_capacity(150), // ringbuffer::FixedRingBuffer::new(capacity),
             style,
+            buffer: chrono::Duration::seconds(buffer as i64),
         }
     }
     pub fn update(&mut self, item: Option<Duration>) {
-        self.idx += 1;
-        if self.data.len() >= self.data.cap {
-            self.window_min += 1_f64;
-            self.window_max += 1_f64;
-        }
+        let now = Local::now();
+        let idx = now.timestamp_millis() as f64 / 1_000f64;
         match item {
-            Some(dur) => self.data.push((self.idx as f64, dur.as_micros() as f64)),
-            None => self.data.push((self.idx as f64, 0_f64)),
+            Some(dur) => self.data.push((idx, dur.as_micros() as f64)),
+            None => self.data.push((idx, 0_f64)),
         }
-    }
-
-    pub fn stats(&self) -> Histogram {
-        let mut hist = Histogram::new();
-
-        for (_, val) in self.data.iter().filter(|v| v.1 != 0f64) {
-            hist.increment(*val as u64).unwrap_or(());
+        // Find the last index that we should remove.
+        let earliest_timestamp = (now - self.buffer).timestamp_millis() as f64 / 1_000f64;
+        let last_idx = self
+            .data
+            .iter()
+            .enumerate()
+            .filter(|(_, (timestamp, _))| *timestamp < earliest_timestamp)
+            .map(|(idx, _)| idx)
+            .last();
+        if let Some(idx) = last_idx {
+            self.data.drain(0..idx).for_each(drop)
         }
-
-        hist
     }
 
     pub fn header_stats(&self) -> Vec<Paragraph> {
-        let stats = self.stats();
+        let ping_header = Paragraph::new(self.display.clone()).style(self.style);
+        if self.data.is_empty() {
+            return vec![ping_header];
+        }
+        let items: Vec<&f64> = self
+            .data
+            .iter()
+            .sorted_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .map(|(_, v)| v)
+            .collect();
+        let min = **items.first().unwrap();
+        let max = **items.last().unwrap();
+
+        let percentile_position = 0.95 * items.len() as f32;
+        let rounded_position = percentile_position.round() as usize;
+        let p95 = items.get(rounded_position).map(|i| **i).unwrap_or(0f64);
+
         vec![
-            Paragraph::new(self.display.clone()).style(self.style),
-            Paragraph::new(format!(
-                "min {:?}",
-                Duration::from_micros(stats.minimum().unwrap_or(0))
-            ))
-            .style(self.style),
-            Paragraph::new(format!(
-                "max {:?}",
-                Duration::from_micros(stats.maximum().unwrap_or(0))
-            ))
-            .style(self.style),
-            Paragraph::new(format!(
-                "p95 {:?}",
-                Duration::from_micros(stats.percentile(95.0).unwrap_or(0))
-            ))
-            .style(self.style),
+            ping_header,
+            Paragraph::new(format!("min {:?}", Duration::from_micros(min as u64)))
+                .style(self.style),
+            Paragraph::new(format!("max {:?}", Duration::from_micros(max as u64)))
+                .style(self.style),
+            Paragraph::new(format!("p95 {:?}", Duration::from_micros(p95 as u64)))
+                .style(self.style),
         ]
     }
 }

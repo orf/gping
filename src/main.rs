@@ -1,7 +1,6 @@
-mod ringbuffer;
-
 use crate::plot_data::PlotData;
 use anyhow::{anyhow, Result};
+use chrono::prelude::*;
 use crossterm::event::{KeyEvent, KeyModifiers};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event as CEvent, KeyCode},
@@ -29,7 +28,6 @@ use tui::style::{Color, Style};
 use tui::text::Span;
 use tui::widgets::{Axis, Block, Borders, Chart, Dataset};
 use tui::Terminal;
-
 mod plot_data;
 
 #[derive(Debug, StructOpt)]
@@ -52,10 +50,10 @@ struct Args {
     #[structopt(
         short,
         long,
-        default_value = "100",
-        help = "Determines the number pings to display."
+        default_value = "30",
+        help = "Determines the number of seconds to display in the graph."
     )]
-    buffer: usize,
+    buffer: u64,
     /// Resolve ping targets to IPv4 address
     #[structopt(short = "4", conflicts_with = "ipv6")]
     ipv4: bool,
@@ -66,11 +64,15 @@ struct Args {
 
 struct App {
     data: Vec<PlotData>,
+    buffer: Duration,
 }
 
 impl App {
-    fn new(data: Vec<PlotData>) -> Self {
-        App { data }
+    fn new(data: Vec<PlotData>, buffer: u64) -> Self {
+        App {
+            data,
+            buffer: Duration::from_secs(buffer),
+        }
     }
 
     fn update(&mut self, host_idx: usize, item: Option<Duration>) {
@@ -97,12 +99,23 @@ impl App {
     }
 
     fn x_axis_bounds(&self) -> [f64; 2] {
-        let window_min = self.data.iter().map(|d| d.window_min);
-        let window_max = self.data.iter().map(|d| d.window_max);
-        [
-            window_min.fold(f64::INFINITY, |a, b| a.min(b)),
-            window_max.fold(0f64, |a, b| a.max(b)),
-        ]
+        let now = Local::now();
+        let now_idx = now.timestamp_millis() as f64 / 1_000f64;
+        let before = now - chrono::Duration::from_std(self.buffer).unwrap();
+        let before_idx = before.timestamp_millis() as f64 / 1_000f64;
+        [before_idx, now_idx]
+    }
+
+    fn x_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span> {
+        let lower = NaiveDateTime::from_timestamp(bounds[0] as i64, 0);
+        let upper = NaiveDateTime::from_timestamp(bounds[1] as i64, 0);
+        let diff = (upper - lower) / 2;
+        let midpoint = lower + diff;
+        return vec![
+            Span::raw(format!("{:?}", lower.time())),
+            Span::raw(format!("{:?}", midpoint.time())),
+            Span::raw(format!("{:?}", upper.time())),
+        ];
     }
 
     fn y_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span> {
@@ -211,14 +224,12 @@ fn get_host_ipaddr(host: &str, force_ipv4: bool, force_ipv6: bool) -> Result<Str
     let ipaddr = if force_ipv4 {
         ipaddr
             .iter()
-            .filter(|ip| matches!(ip, IpAddr::V4(_)))
-            .next()
+            .find(|ip| matches!(ip, IpAddr::V4(_)))
             .ok_or_else(|| anyhow!("Could not resolve '{}' to IPv4", host))
     } else if force_ipv6 {
         ipaddr
             .iter()
-            .filter(|ip| matches!(ip, IpAddr::V6(_)))
-            .next()
+            .find(|ip| matches!(ip, IpAddr::V6(_)))
             .ok_or_else(|| anyhow!("Could not resolve '{}' to IPv6", host))
     } else {
         ipaddr
@@ -249,7 +260,7 @@ fn main() -> Result<()> {
         ));
     }
 
-    let mut app = App::new(data);
+    let mut app = App::new(data, args.buffer);
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -350,13 +361,15 @@ fn main() -> Result<()> {
                     let datasets: Vec<Dataset> = app.data.iter().map(|d| d.into()).collect();
 
                     let y_axis_bounds = app.y_axis_bounds();
+                    let x_axis_bounds = app.x_axis_bounds();
 
                     let chart = Chart::new(datasets)
                         .block(Block::default().borders(Borders::NONE))
                         .x_axis(
                             Axis::default()
                                 .style(Style::default().fg(Color::Gray))
-                                .bounds(app.x_axis_bounds()),
+                                .bounds(x_axis_bounds)
+                                .labels(app.x_axis_labels(x_axis_bounds)),
                         )
                         .y_axis(
                             Axis::default()
