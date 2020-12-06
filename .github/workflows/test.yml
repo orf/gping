@@ -81,12 +81,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  cross_buils:
+  cross_builds:
     name: Cross-build
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [armv7-linux-androideabi, armv7-unknown-linux-gnueabihf, aarch64-linux-android]
+        target: [armv7-linux-androideabi, armv7-unknown-linux-gnueabihf, aarch64-linux-android, x86_64-unknown-linux-musl]
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
