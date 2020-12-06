@@ -2,7 +2,7 @@ on:
   push:
     tags:
       - 'v*'
-      - '!v*-post'
+      - '!v*-post*'
 
 jobs:
   homebrew:
