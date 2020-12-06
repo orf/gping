@@ -43,7 +43,7 @@ Just run `gping [host]`.
 
 ```bash
 $ gping --help
-gping 1.0.2
+gping 1.2.0
 Ping, but with a graph.
 
 USAGE:
@@ -57,7 +57,7 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -b, --buffer <buffer>                    Determines the number pings to display. [default: 100]
+    -b, --buffer <buffer>                    Determines the number of seconds to display in the graph. [default: 30]
     -n, --watch-interval <watch-interval>    Watch interval seconds (provide partial seconds like '0.5') [default: 0.5]
 
 ARGS:
