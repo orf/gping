@@ -64,14 +64,16 @@ struct Args {
 
 struct App {
     data: Vec<PlotData>,
-    buffer: Duration,
+    display_interval: chrono::Duration,
+    started: chrono::DateTime<Local>,
 }
 
 impl App {
     fn new(data: Vec<PlotData>, buffer: u64) -> Self {
         App {
             data,
-            buffer: Duration::from_secs(buffer),
+            display_interval: chrono::Duration::from_std(Duration::from_secs(buffer)).unwrap(),
+            started: Local::now(),
         }
     }
 
@@ -100,9 +102,17 @@ impl App {
 
     fn x_axis_bounds(&self) -> [f64; 2] {
         let now = Local::now();
-        let now_idx = now.timestamp_millis() as f64 / 1_000f64;
-        let before = now - chrono::Duration::from_std(self.buffer).unwrap();
-        let before_idx = before.timestamp_millis() as f64 / 1_000f64;
+        let now_idx;
+        let before_idx;
+        if (now - self.started) < self.display_interval {
+            now_idx = (self.started + self.display_interval).timestamp_millis() as f64 / 1_000f64;
+            before_idx = self.started.timestamp_millis() as f64 / 1_000f64;
+        } else {
+            now_idx = now.timestamp_millis() as f64 / 1_000f64;
+            let before = now - self.display_interval;
+            before_idx = before.timestamp_millis() as f64 / 1_000f64;
+        }
+
         [before_idx, now_idx]
     }
 
