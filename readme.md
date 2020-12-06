@@ -17,6 +17,7 @@ Table of Contents
 
 * Homebrew: `brew install gping`
 * Linux (Homebrew): `brew install orf/brew/gping`
+* CentOS (and other distributions with an old glibc): Download the MUSL build from the latest release
 * Windows/ARM: 
   * Scoop: `scoop install gping`
   * Download the latest release from [the github releases page](https://github.com/orf/gping/releases)
