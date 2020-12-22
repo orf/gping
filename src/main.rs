@@ -117,8 +117,10 @@ impl App {
     }
 
     fn x_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span> {
-        let lower = NaiveDateTime::from_timestamp(bounds[0] as i64, 0);
-        let upper = NaiveDateTime::from_timestamp(bounds[1] as i64, 0);
+        let lower_utc = NaiveDateTime::from_timestamp(bounds[0] as i64, 0);
+        let upper_utc = NaiveDateTime::from_timestamp(bounds[1] as i64, 0);
+        let lower = Local::from_utc_datetime(&Local, &lower_utc);
+        let upper = Local::from_utc_datetime(&Local, &upper_utc);
         let diff = (upper - lower) / 2;
         let midpoint = lower + diff;
         return vec![
