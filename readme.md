@@ -23,19 +23,13 @@ Table of Contents
   * Download the latest release from [the github releases page](https://github.com/orf/gping/releases)
 * Fedora ([COPR](https://copr.fedorainfracloud.org/coprs/atim/gping/)): `sudo dnf copr enable atim/gping -y && sudo dnf install gping`
 * Cargo (**This requires `rustc` version 1.44.0 or greater**): `cargo install gping`
+* Arch Linux: `pacman -S gping`
 * Ubuntu/Debian ([Azlux's repo](http://packages.azlux.fr/)):
 ```bash
 echo "deb http://packages.azlux.fr/debian/ buster main" | sudo tee /etc/apt/sources.list.d/azlux.list
 wget -qO - https://azlux.fr/repo.gpg.key | sudo apt-key add -
 apt update
 apt install gping
-```
-* Arch Linux ([AUR](https://aur.archlinux.org/packages/?O=0&SeB=nd&K=Ping%2C+but+with+a+graph&outdated=&SB=n&SO=a&PP=50&do_Search=Go)):
-```bash
-git clone https://aur.archlinux.org/gping.git
-cd gping
-makepkg -si
-# or use an AUR helper (e.g. `paru gping`)
 ```
 
 # Usage :saxophone:
