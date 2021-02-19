@@ -12,15 +12,17 @@ pub struct PlotData {
     pub data: Vec<(f64, f64)>,
     pub style: Style,
     buffer: chrono::Duration,
+    simple_graphics: bool,
 }
 
 impl PlotData {
-    pub fn new(display: String, buffer: u64, style: Style) -> PlotData {
+    pub fn new(display: String, buffer: u64, style: Style, simple_graphics: bool) -> PlotData {
         PlotData {
             display,
             data: Vec::with_capacity(150), // ringbuffer::FixedRingBuffer::new(capacity),
             style,
             buffer: chrono::Duration::seconds(buffer as i64),
+            simple_graphics,
         }
     }
     pub fn update(&mut self, item: Option<Duration>) {
@@ -78,7 +80,11 @@ impl<'a> Into<Dataset<'a>> for &'a PlotData {
     fn into(self) -> Dataset<'a> {
         let slice = self.data.as_slice();
         Dataset::default()
-            .marker(symbols::Marker::Braille)
+            .marker(if self.simple_graphics {
+                symbols::Marker::Dot
+            } else {
+                symbols::Marker::Braille
+            })
             .style(self.style)
             .graph_type(GraphType::Line)
             .data(slice)

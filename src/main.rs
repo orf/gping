@@ -60,6 +60,8 @@ struct Args {
     /// Resolve ping targets to IPv6 address
     #[structopt(short = "6", conflicts_with = "ipv4")]
     ipv6: bool,
+    #[structopt(short = "s", long, help = "Uses dot characters instead of braille")]
+    simple_graphics: bool,
 }
 
 struct App {
@@ -269,6 +271,7 @@ fn main() -> Result<()> {
             display,
             args.buffer,
             Style::default().fg(Color::Indexed(idx as u8 + 1)),
+            args.simple_graphics,
         ));
     }
 
