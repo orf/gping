@@ -45,11 +45,12 @@ USAGE:
     gping [FLAGS] [OPTIONS] [hosts-or-commands]...
 
 FLAGS:
-        --cmd        Graph the execution time for a list of commands rather than pinging hosts
-    -h, --help       Prints help information
-    -4               Resolve ping targets to IPv4 address
-    -6               Resolve ping targets to IPv6 address
-    -V, --version    Prints version information
+        --cmd                Graph the execution time for a list of commands rather than pinging hosts
+    -h, --help               Prints help information
+    -4                       Resolve ping targets to IPv4 address
+    -6                       Resolve ping targets to IPv6 address
+    -s, --simple-graphics    Uses dot characters instead of braille
+    -V, --version            Prints version information
 
 OPTIONS:
     -b, --buffer <buffer>                    Determines the number of seconds to display in the graph. [default: 30]
