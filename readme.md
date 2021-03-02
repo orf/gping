@@ -20,6 +20,7 @@ Table of Contents
 * CentOS (and other distributions with an old glibc): Download the MUSL build from the latest release
 * Windows/ARM: 
   * Scoop: `scoop install gping`
+  * Chocolatey: `choco install gping`
   * Download the latest release from [the github releases page](https://github.com/orf/gping/releases)
 * Fedora ([COPR](https://copr.fedorainfracloud.org/coprs/atim/gping/)): `sudo dnf copr enable atim/gping -y && sudo dnf install gping`
 * Cargo (**This requires `rustc` version 1.44.0 or greater**): `cargo install gping`
