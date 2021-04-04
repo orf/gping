@@ -30,7 +30,7 @@ impl PlotData {
         let idx = now.timestamp_millis() as f64 / 1_000f64;
         match item {
             Some(dur) => self.data.push((idx, dur.as_micros() as f64)),
-            None => self.data.push((idx, 0_f64)),
+            None => self.data.push((idx, f64::NAN)),
         }
         // Find the last index that we should remove.
         let earliest_timestamp = (now - self.buffer).timestamp_millis() as f64 / 1_000f64;
@@ -54,6 +54,7 @@ impl PlotData {
         let items: Vec<&f64> = self
             .data
             .iter()
+            .filter(|(_,x)| ! x.is_nan())
             .sorted_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
             .map(|(_, v)| v)
             .collect();
@@ -64,6 +65,10 @@ impl PlotData {
         let rounded_position = percentile_position.round() as usize;
         let p95 = items.get(rounded_position).map(|i| **i).unwrap_or(0f64);
 
+        // count timeouts
+        let to = self.data.iter().filter(|(_,x)| x.is_nan()).count();
+
+
         vec![
             ping_header,
             Paragraph::new(format!("min {:?}", Duration::from_micros(min as u64)))
@@ -71,6 +76,8 @@ impl PlotData {
             Paragraph::new(format!("max {:?}", Duration::from_micros(max as u64)))
                 .style(self.style),
             Paragraph::new(format!("p95 {:?}", Duration::from_micros(p95 as u64)))
+                .style(self.style),
+            Paragraph::new(format!("timeout# {:?}", to))
                 .style(self.style),
         ]
     }

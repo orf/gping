@@ -357,10 +357,11 @@ fn main() -> Result<()> {
                             .direction(Direction::Horizontal)
                             .constraints(
                                 [
-                                    Constraint::Percentage(25),
-                                    Constraint::Percentage(25),
-                                    Constraint::Percentage(25),
-                                    Constraint::Percentage(25),
+                                    Constraint::Percentage(20),
+                                    Constraint::Percentage(20),
+                                    Constraint::Percentage(20),
+                                    Constraint::Percentage(20),
+                                    Constraint::Percentage(20),
                                 ]
                                 .as_ref(),
                             )
