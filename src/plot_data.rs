@@ -54,7 +54,7 @@ impl PlotData {
         let items: Vec<&f64> = self
             .data
             .iter()
-            .filter(|(_,x)| ! x.is_nan())
+            .filter(|(_, x)| !x.is_nan())
             .sorted_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
             .map(|(_, v)| v)
             .collect();
@@ -66,8 +66,7 @@ impl PlotData {
         let p95 = items.get(rounded_position).map(|i| **i).unwrap_or(0f64);
 
         // count timeouts
-        let to = self.data.iter().filter(|(_,x)| x.is_nan()).count();
-
+        let to = self.data.iter().filter(|(_, x)| x.is_nan()).count();
 
         vec![
             ping_header,
@@ -77,8 +76,7 @@ impl PlotData {
                 .style(self.style),
             Paragraph::new(format!("p95 {:?}", Duration::from_micros(p95 as u64)))
                 .style(self.style),
-            Paragraph::new(format!("timeout# {:?}", to))
-                .style(self.style),
+            Paragraph::new(format!("timeout# {:?}", to)).style(self.style),
         ]
     }
 }
