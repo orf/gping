@@ -48,9 +48,6 @@ impl PlotData {
 
     pub fn header_stats(&self) -> Vec<Paragraph> {
         let ping_header = Paragraph::new(self.display.clone()).style(self.style);
-        if self.data.is_empty() {
-            return vec![ping_header];
-        }
         let items: Vec<&f64> = self
             .data
             .iter()
@@ -58,6 +55,10 @@ impl PlotData {
             .sorted_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
             .map(|(_, v)| v)
             .collect();
+        if items.is_empty() {
+            return vec![ping_header];
+        }
+
         let min = **items.first().unwrap();
         let max = **items.last().unwrap();
 
