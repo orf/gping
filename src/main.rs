@@ -10,7 +10,6 @@ use crossterm::{
 use dns_lookup::lookup_host;
 use pinger::{ping, PingResult};
 use std::io;
-use std::io::Write;
 use std::iter;
 use std::net::IpAddr;
 use std::ops::Add;
