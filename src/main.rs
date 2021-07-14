@@ -136,14 +136,14 @@ impl App {
         let min = bounds[0];
         let max = bounds[1];
 
-        let difference = max - min;
+        let difference = (max + (max * 0.091)) - (min + (min * 0.091));
         let num_labels = 7;
         // Split difference into one chunk for each of the 7 labels
         let increment = Duration::from_micros((difference / num_labels as f64) as u64);
         let duration = Duration::from_micros(min as u64);
 
         (0..num_labels)
-            .map(|i| Span::raw(format!("{:?}", duration.add(increment * i))))
+            .map(|i| Span::raw(format!("{:.1?}", duration.add(increment * i))))
             .collect()
     }
 }
@@ -177,6 +177,7 @@ fn start_cmd_thread(
     watch_interval: f32,
     cmd_tx: Sender<Event>,
     kill_event: Arc<AtomicBool>,
+    pause_event: Arc<AtomicBool>,
 ) -> JoinHandle<Result<()>> {
     let mut words = watch_cmd.split_ascii_whitespace();
     let cmd = words
@@ -193,20 +194,22 @@ fn start_cmd_thread(
     // Pump cmd watches into the queue
     thread::spawn(move || -> Result<()> {
         while !kill_event.load(Ordering::Acquire) {
-            let start = Instant::now();
-            let mut child = Command::new(&cmd)
-                .args(&cmd_args)
-                .stderr(Stdio::null())
-                .stdout(Stdio::null())
-                .spawn()?;
-            let status = child.wait()?;
-            let duration = start.elapsed();
-            let update = if status.success() {
-                Update::Result(duration)
-            } else {
-                Update::Timeout
-            };
-            cmd_tx.send(Event::Update(host_id, update))?;
+            if !pause_event.load(Ordering::Acquire) {
+                let start = Instant::now();
+                let mut child = Command::new(&cmd)
+                    .args(&cmd_args)
+                    .stderr(Stdio::null())
+                    .stdout(Stdio::null())
+                    .spawn()?;
+                let status = child.wait()?;
+                let duration = start.elapsed();
+                let update = if status.success() {
+                    Update::Result(duration)
+                } else {
+                    Update::Timeout
+                };
+                cmd_tx.send(Event::Update(host_id, update))?;
+            }
             thread::sleep(interval);
         }
         Ok(())
@@ -218,12 +221,16 @@ fn start_ping_thread(
     host_id: usize,
     ping_tx: Sender<Event>,
     kill_event: Arc<AtomicBool>,
+    pause_event: Arc<AtomicBool>,
 ) -> JoinHandle<Result<()>> {
     // Pump ping messages into the queue
     thread::spawn(move || -> Result<()> {
         let stream = ping(host)?;
         while !kill_event.load(Ordering::Acquire) {
-            ping_tx.send(Event::Update(host_id, stream.recv()?.into()))?;
+            let res = stream.recv()?;
+            if !pause_event.load(Ordering::Acquire) {
+                ping_tx.send(Event::Update(host_id, res.into()))?;
+            }
         }
         Ok(())
     })
@@ -289,6 +296,7 @@ fn main() -> Result<()> {
     let mut threads = vec![];
 
     let killed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let paused = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
     for (host_id, host_or_cmd) in args.hosts_or_commands.iter().cloned().enumerate() {
         if args.cmd {
@@ -298,6 +306,7 @@ fn main() -> Result<()> {
                 args.watch_interval,
                 key_tx.clone(),
                 std::sync::Arc::clone(&killed),
+                std::sync::Arc::clone(&paused),
             );
             threads.push(cmd_thread);
         } else {
@@ -306,6 +315,7 @@ fn main() -> Result<()> {
                 host_id,
                 key_tx.clone(),
                 std::sync::Arc::clone(&killed),
+                std::sync::Arc::clone(&paused),
             ));
         }
     }
@@ -404,6 +414,10 @@ fn main() -> Result<()> {
                 KeyCode::Char('c') if input.modifiers == KeyModifiers::CONTROL => {
                     killed.store(true, Ordering::Release);
                     break;
+                }
+                KeyCode::Char(' ') => {
+                    let is_paused = paused.load(Ordering::Acquire);
+                    paused.store(!is_paused, Ordering::Release);
                 }
                 _ => {}
             },
