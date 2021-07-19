@@ -2,7 +2,7 @@ on:
   push:
     tags:
       - 'gping-v*'
-      - 'gping-!v*-post*'
+      - '!gping-v*-post*'
 
 jobs:
   homebrew:
