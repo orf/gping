@@ -1,8 +1,8 @@
 on:
   push:
     tags:
-      - 'v*'
-      - '!v*-post*'
+      - 'gping-v*'
+      - 'gping-!v*-post*'
 
 jobs:
   homebrew:
