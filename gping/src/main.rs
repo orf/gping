@@ -44,7 +44,10 @@ struct Args {
         default_value = "0.5"
     )]
     watch_interval: f32,
-    #[structopt(help = "Hosts or IPs to ping, or commands to run if --cmd is provided.")]
+    #[structopt(
+        help = "Hosts or IPs to ping, or commands to run if --cmd is provided.",
+        required = true
+    )]
     hosts_or_commands: Vec<String>,
     #[structopt(
         short,

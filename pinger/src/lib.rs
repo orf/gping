@@ -28,6 +28,7 @@ use thiserror::Error;
 extern crate lazy_static;
 
 pub mod linux;
+// pub mod alpine'
 pub mod macos;
 #[cfg(windows)]
 pub mod windows;
@@ -164,6 +165,11 @@ pub fn ping_with_interval(addr: String, interval: Duration) -> Result<mpsc::Rece
         | Type::Solus
         | Type::Android => {
             let mut p = linux::LinuxPinger::default();
+            p.set_interval(interval);
+            p.start::<linux::LinuxParser>(addr)
+        }
+        Type::Alpine => {
+            let mut p = linux::AlpinePinger::default();
             p.set_interval(interval);
             p.start::<linux::LinuxParser>(addr)
         }

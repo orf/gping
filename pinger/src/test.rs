@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::linux::LinuxParser;
+    // use crate::alpine::AlpineParser;
     use crate::macos::MacOSParser;
     #[cfg(windows)]
     use crate::windows::WindowsParser;
@@ -62,5 +63,10 @@ mod tests {
     #[test]
     fn android() {
         test_parser::<LinuxParser>(include_str!("tests/android.txt"));
+    }
+
+    #[test]
+    fn alpine() {
+        test_parser::<LinuxParser>(include_str!("tests/alpine.txt"));
     }
 }

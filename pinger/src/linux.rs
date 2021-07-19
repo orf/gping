@@ -23,6 +23,18 @@ impl Pinger for LinuxPinger {
     }
 }
 
+#[derive(Default)]
+pub struct AlpinePinger {
+    interval: Duration,
+}
+
+// Alpine doesn't support timeout notifications, so we don't add the -O flag here
+impl Pinger for AlpinePinger {
+    fn set_interval(&mut self, interval: Duration) {
+        self.interval = interval;
+    }
+}
+
 lazy_static! {
     static ref UBUNTU_RE: Regex = Regex::new(r"(?i-u)time=(?P<time>\d+(?:\.\d+)?) *ms").unwrap();
 }
