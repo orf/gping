@@ -328,7 +328,7 @@ dependencies = [
 
 [[package]]
 name = "pinger"
-version = "0.3.4-alpha.0"
+version = "0.3.4"
 dependencies = [
  "anyhow",
  "dns-lookup",
