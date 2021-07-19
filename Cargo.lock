@@ -157,7 +157,7 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "gping"
-version = "1.2.2"
+version = "1.2.3-alpha.0"
 dependencies = [
  "anyhow",
  "chrono",
