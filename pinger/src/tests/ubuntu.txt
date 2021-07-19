@@ -1,0 +1,29 @@
+PING google.com (216.58.209.78) 56(84) bytes of data.
+64 bytes from mad07s22-in-f14.1e100.net (216.58.209.78): icmp_seq=1 ttl=37 time=25.1 ms
+64 bytes from mad07s22-in-f14.1e100.net (216.58.209.78): icmp_seq=2 ttl=37 time=19.4 ms
+64 bytes from mad07s22-in-f14.1e100.net (216.58.209.78): icmp_seq=3 ttl=37 time=14.9 ms
+64 bytes from mad07s22-in-f14.1e100.net (216.58.209.78): icmp_seq=4 ttl=37 time=22.8 ms
+64 bytes from mad07s22-in-f14.1e100.net (216.58.209.78): icmp_seq=5 ttl=37 time=13.9 ms
+64 bytes from mad07s22-in-f14.1e100.net (216.58.209.78): icmp_seq=6 ttl=37 time=77.6 ms
+64 bytes from mad07s22-in-f14.1e100.net (216.58.209.78): icmp_seq=7 ttl=37 time=158 ms
+no answer yet for icmp_seq=8
+no answer yet for icmp_seq=9
+64 bytes from mad07s22-in-f14.1e100.net (216.58.209.78): icmp_seq=18 ttl=37 time=357 ms
+64 bytes from mad07s22-in-f14.1e100.net (216.58.209.78): icmp_seq=19 ttl=37 time=85.2 ms
+64 bytes from mad07s22-in-f14.1e100.net (216.58.209.78): icmp_seq=20 ttl=37 time=17.8 ms
+
+-----
+
+None
+25.1ms
+19.4ms
+14.9ms
+22.8ms
+13.9ms
+77.6ms
+158ms
+Timeout
+Timeout
+357ms
+85.2ms
+17.8ms

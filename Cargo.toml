@@ -1,22 +1,9 @@
-[package]
-name = "gping"
-version = "1.2.2-alpha.0"
-authors = ["Tom Forbes <tom@tomforb.es>"]
-edition = "2018"
-repository = "https://github.com/orf/gping"
-license = "MIT"
-description = "Ping, but with a graph."
-#rust = "1.44.0"
+[workspace]
 
-[dependencies]
-pinger = "0.3.1"
-structopt = "0.3.22"
-tui = { version = "0.15.0", features = ["crossterm"], default_features = false }
-crossterm = "0.20.0"
-anyhow = "1.0.42"
-dns-lookup = "1.0.7"
-chrono = "0.4.19"
-itertools = "0.10.1"
+members = [
+    "gping",
+    "pinger"
+]
 
 [profile.release]
 lto = true
