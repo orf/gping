@@ -32,6 +32,12 @@ wget -qO - https://azlux.fr/repo.gpg.key | sudo apt-key add -
 sudo apt update
 sudo apt install gping
 ```
+* Gentoo ([dm9pZCAq overlay](https://github.com/gentoo-mirror/dm9pZCAq)):
+```sh
+sudo eselect repository enable dm9pZCAq
+sudo emerge --sync dm9pZCAq
+sudo emerge net-misc/gping::dm9pZCAq
+```
 
 # Usage :saxophone:
 
