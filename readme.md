@@ -13,9 +13,15 @@ Table of Contents
    * [Install :cd:](#install-cd)
    * [Usage :saxophone:](#usage-saxophone)
 
+<a href="https://repology.org/project/gping/versions">
+    <img src="https://repology.org/badge/vertical-allrepos/gping.svg" alt="Packaging status" align="right">
+</a>
+
 # Install :cd:
 
-* Homebrew: `brew install gping`
+* macOS
+  * [Homebrew](https://formulae.brew.sh/formula/gping#default): `brew install gping`
+  * [MacPorts](https://ports.macports.org/port/gping/): `sudo port install gping`
 * Linux (Homebrew): `brew install orf/brew/gping`
 * CentOS (and other distributions with an old glibc): Download the MUSL build from the latest release
 * Windows/ARM: 
