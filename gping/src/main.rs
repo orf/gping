@@ -272,7 +272,7 @@ fn main() -> Result<()> {
         data.push(PlotData::new(
             display,
             args.buffer,
-            Style::default().fg(Color::Indexed(idx as u8 + 1)),
+            Style::default().fg(Color::Indexed(idx as u8 + 2)),
             args.simple_graphics,
         ));
     }
