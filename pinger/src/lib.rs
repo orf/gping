@@ -163,6 +163,7 @@ pub fn ping_with_interval(addr: String, interval: Duration) -> Result<mpsc::Rece
         | Type::Ubuntu
         | Type::Pop
         | Type::Solus
+        | Type::Raspbian
         | Type::Android => {
             let mut p = linux::LinuxPinger::default();
             p.set_interval(interval);
