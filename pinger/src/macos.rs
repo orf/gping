@@ -12,15 +12,15 @@ pub struct MacOSPinger {
 }
 
 impl Pinger for MacOSPinger {
+    fn set_interval(&mut self, interval: Duration) {
+        self.interval = interval;
+    }
+
     fn ping_args(&self, target: String) -> Vec<String> {
         vec![
             format!("-i{:.1}", self.interval.as_millis() as f32 / 1_000_f32),
             target,
         ]
-    }
-
-    fn set_interval(&mut self, interval: Duration) {
-        self.interval = interval;
     }
 }
 
