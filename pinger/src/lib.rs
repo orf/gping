@@ -153,6 +153,7 @@ pub fn ping_with_interval(addr: String, interval: Duration) -> Result<mpsc::Rece
         | Type::EndeavourOS
         | Type::Fedora
         | Type::Linux
+        | Type::NixOS
         | Type::Manjaro
         | Type::Mint
         | Type::openSUSE
