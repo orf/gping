@@ -8,7 +8,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use dns_lookup::lookup_host;
-use pinger::{ping, PingResult};
+use pinger::{ping_with_interval, PingResult};
 use std::io;
 use std::iter;
 use std::net::IpAddr;
@@ -40,10 +40,9 @@ struct Args {
     #[structopt(
         short = "n",
         long,
-        help = "Watch interval seconds (provide partial seconds like '0.5')",
-        default_value = "0.5"
+        help = "Watch interval seconds (provide partial seconds like '0.5'). Default for ping is 0.2, default for cmd is 0.5."
     )]
-    watch_interval: f32,
+    watch_interval: Option<f32>,
     #[structopt(
         help = "Hosts or IPs to ping, or commands to run if --cmd is provided.",
         required = true
@@ -177,7 +176,7 @@ enum Event {
 fn start_cmd_thread(
     watch_cmd: &str,
     host_id: usize,
-    watch_interval: f32,
+    watch_interval: Option<f32>,
     cmd_tx: Sender<Event>,
     kill_event: Arc<AtomicBool>,
 ) -> JoinHandle<Result<()>> {
@@ -191,7 +190,7 @@ fn start_cmd_thread(
         .map(|w| w.to_string())
         .collect::<Vec<String>>();
 
-    let interval = Duration::from_millis((watch_interval * 1000.0) as u64);
+    let interval = Duration::from_millis((watch_interval.unwrap_or(0.5) * 1000.0) as u64);
 
     // Pump cmd watches into the queue
     thread::spawn(move || -> Result<()> {
@@ -219,12 +218,14 @@ fn start_cmd_thread(
 fn start_ping_thread(
     host: String,
     host_id: usize,
+    watch_interval: Option<f32>,
     ping_tx: Sender<Event>,
     kill_event: Arc<AtomicBool>,
 ) -> JoinHandle<Result<()>> {
+    let interval = Duration::from_millis((watch_interval.unwrap_or(0.2) * 1000.0) as u64);
     // Pump ping messages into the queue
     thread::spawn(move || -> Result<()> {
-        let stream = ping(host)?;
+        let stream = ping_with_interval(host, interval)?;
         while !kill_event.load(Ordering::Acquire) {
             ping_tx.send(Event::Update(host_id, stream.recv()?.into()))?;
         }
@@ -307,6 +308,7 @@ fn main() -> Result<()> {
             threads.push(start_ping_thread(
                 host_or_cmd,
                 host_id,
+                args.watch_interval,
                 key_tx.clone(),
                 std::sync::Arc::clone(&killed),
             ));
