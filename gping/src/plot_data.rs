@@ -61,6 +61,10 @@ impl PlotData {
 
         let min = **items.first().unwrap();
         let max = **items.last().unwrap();
+        let avg = items.iter().fold(0f64, |sum, &item| sum + item) / items.len() as f64;
+        let jtr = items.iter().enumerate().fold(0f64, |sum, (idx, &item)| sum
+            + (*items.get(idx + 1).unwrap_or(&item) - item).abs())
+            / (items.len() - 1) as f64;
 
         let percentile_position = 0.95 * items.len() as f32;
         let rounded_position = percentile_position.round() as usize;
@@ -75,9 +79,13 @@ impl PlotData {
                 .style(self.style),
             Paragraph::new(format!("max {:?}", Duration::from_micros(max as u64)))
                 .style(self.style),
+            Paragraph::new(format!("avg {:?}", Duration::from_micros(avg as u64)))
+                .style(self.style),
+            Paragraph::new(format!("jtr {:?}", Duration::from_micros(jtr as u64)))
+                .style(self.style),
             Paragraph::new(format!("p95 {:?}", Duration::from_micros(p95 as u64)))
                 .style(self.style),
-            Paragraph::new(format!("timeout# {:?}", to)).style(self.style),
+            Paragraph::new(format!("t/o {:?}", to)).style(self.style),
         ]
     }
 }
