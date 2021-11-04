@@ -30,7 +30,7 @@ impl PlotData {
         let idx = now.timestamp_millis() as f64 / 1_000f64;
         match item {
             Some(dur) => self.data.push((idx, dur.as_micros() as f64)),
-            None => (), // self.data.push((idx, f64::NAN)),
+            None => self.data.push((idx, f64::NAN)),
         }
         // Find the last index that we should remove.
         let earliest_timestamp = (now - self.buffer).timestamp_millis() as f64 / 1_000f64;
