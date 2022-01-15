@@ -1,6 +1,7 @@
 use crate::plot_data::PlotData;
 use anyhow::{anyhow, Result};
 use chrono::prelude::*;
+use const_format::formatcp;
 use crossterm::event::{KeyEvent, KeyModifiers};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event as CEvent, KeyCode},
@@ -29,8 +30,24 @@ use tui::widgets::{Axis, Block, Borders, Chart, Dataset};
 use tui::Terminal;
 mod plot_data;
 
+use shadow_rs::shadow;
+
+shadow!(build);
+
+const VERSION_INFO: &str = formatcp!(
+    r#"{}
+commit_hash: {}
+build_time: {}
+build_env: {},{}"#,
+    build::PKG_VERSION,
+    build::SHORT_COMMIT,
+    build::BUILD_TIME,
+    build::RUST_VERSION,
+    build::RUST_CHANNEL
+);
+
 #[derive(Debug, StructOpt)]
-#[structopt(name = "gping", about = "Ping, but with a graph.")]
+#[structopt(name = "gping", about = "Ping, but with a graph.", version=VERSION_INFO)]
 struct Args {
     #[structopt(
         long,
@@ -367,7 +384,7 @@ fn main() -> Result<()> {
                                     Constraint::Percentage(12),
                                     Constraint::Percentage(12),
                                     Constraint::Percentage(12),
-                                    Constraint::Percentage(12)
+                                    Constraint::Percentage(12),
                                 ]
                                 .as_ref(),
                             )

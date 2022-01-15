@@ -6,7 +6,8 @@ edition = "2018"
 repository = "https://github.com/orf/gping"
 license = "MIT"
 description = "Ping, but with a graph."
-#rust = "1.44.0"
+build = "build.rs"
+
 
 [dependencies]
 pinger = { version = "^0.3.6", path = "../pinger" }
@@ -17,3 +18,8 @@ anyhow = "1.0.43"
 dns-lookup = "1.0.8"
 chrono = "0.4.19"
 itertools = "0.10.1"
+shadow-rs = "0.8"
+const_format = "0.2.22"
+
+[build-dependencies]
+shadow-rs = "0.8"

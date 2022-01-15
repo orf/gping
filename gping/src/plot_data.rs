@@ -62,9 +62,9 @@ impl PlotData {
         let min = **items.first().unwrap();
         let max = **items.last().unwrap();
         let avg = items.iter().fold(0f64, |sum, &item| sum + item) / items.len() as f64;
-        let jtr = items.iter().enumerate().fold(0f64, |sum, (idx, &item)| sum
-            + (*items.get(idx + 1).unwrap_or(&item) - item).abs())
-            / (items.len() - 1) as f64;
+        let jtr = items.iter().enumerate().fold(0f64, |sum, (idx, &item)| {
+            sum + (*items.get(idx + 1).unwrap_or(&item) - item).abs()
+        }) / (items.len() - 1) as f64;
 
         let percentile_position = 0.95 * items.len() as f32;
         let rounded_position = percentile_position.round() as usize;
@@ -90,18 +90,17 @@ impl PlotData {
     }
 }
 
-impl<'a> Into<Dataset<'a>> for &'a PlotData {
-    fn into(self) -> Dataset<'a> {
-        let slice = self.data.as_slice();
+impl<'a> From<&'a PlotData> for Dataset<'a> {
+    fn from(plot: &'a PlotData) -> Self {
+        let slice = plot.data.as_slice();
         Dataset::default()
-            .marker(if self.simple_graphics {
+            .marker(if plot.simple_graphics {
                 symbols::Marker::Dot
             } else {
                 symbols::Marker::Braille
             })
-            .style(self.style)
+            .style(plot.style)
             .graph_type(GraphType::Line)
             .data(slice)
-        // .x_axis_bounds([self.window_min, self.window_max])
     }
 }
