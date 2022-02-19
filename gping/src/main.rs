@@ -80,9 +80,17 @@ struct Args {
     ipv6: bool,
     #[structopt(short = "s", long, help = "Uses dot characters instead of braille")]
     simple_graphics: bool,
-    #[structopt(long, help = "Vertical margin around the graph (top and bottom)", default_value = "1")]
+    #[structopt(
+        long,
+        help = "Vertical margin around the graph (top and bottom)",
+        default_value = "1"
+    )]
     vertical_margin: u16,
-    #[structopt(long, help = "Horizontal margin around the graph (left and right)", default_value = "0")]
+    #[structopt(
+        long,
+        help = "Horizontal margin around the graph (left and right)",
+        default_value = "0"
+    )]
     horizontal_margin: u16,
 }
 
