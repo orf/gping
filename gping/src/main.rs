@@ -80,6 +80,18 @@ struct Args {
     ipv6: bool,
     #[structopt(short = "s", long, help = "Uses dot characters instead of braille")]
     simple_graphics: bool,
+    #[structopt(
+        long,
+        help = "Vertical margin around the graph (top and bottom)",
+        default_value = "1"
+    )]
+    vertical_margin: u16,
+    #[structopt(
+        long,
+        help = "Horizontal margin around the graph (left and right)",
+        default_value = "0"
+    )]
+    horizontal_margin: u16,
 }
 
 struct App {
@@ -358,7 +370,8 @@ fn main() -> Result<()> {
                     // Split our
                     let chunks = Layout::default()
                         .direction(Direction::Vertical)
-                        .margin(1)
+                        .vertical_margin(args.vertical_margin)
+                        .horizontal_margin(args.horizontal_margin)
                         .constraints(
                             iter::repeat(Constraint::Length(1))
                                 .take(app.data.len())
