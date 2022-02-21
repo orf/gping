@@ -20,6 +20,7 @@ chrono = "0.4.19"
 itertools = "0.10.1"
 shadow-rs = "0.8"
 const_format = "0.2.22"
+read_color = "1.0.0"
 
 [build-dependencies]
 shadow-rs = "0.8"

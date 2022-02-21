@@ -28,8 +28,11 @@ use tui::style::{Color, Style};
 use tui::text::Span;
 use tui::widgets::{Axis, Block, Borders, Chart, Dataset};
 use tui::Terminal;
+
+mod colors;
 mod plot_data;
 
+use colors::Colors;
 use shadow_rs::shadow;
 
 shadow!(build);
@@ -92,6 +95,21 @@ struct Args {
         default_value = "0"
     )]
     horizontal_margin: u16,
+    #[structopt(
+        name = "color",
+        short = "c",
+        long = "color",
+        help = "\
+            Assign color to a graph entry. This option can be defined more than \
+            once and the order which the colors are provided will be matched \
+            against the hosts or commands passed to gping. Hexadecimal RGB color \
+            codes are accepted in the form of '#RRGGBB' or the following color \
+            names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', \
+            'gray', 'dark-gray', 'light-red', 'light-green', 'light-yellow', \
+            'light-blue', 'light-magenta', light-cyan', and 'white'\
+        "
+    )]
+    color_codes_or_names: Vec<String>,
 }
 
 struct App {
@@ -290,7 +308,9 @@ fn main() -> Result<()> {
 
     let mut data = vec![];
 
-    for (idx, host_or_cmd) in args.hosts_or_commands.iter().enumerate() {
+    let colors = Colors::from(args.color_codes_or_names.iter());
+    for (host_or_cmd, color) in args.hosts_or_commands.iter().zip(colors) {
+        let color = color?;
         let display = match args.cmd {
             true => host_or_cmd.to_string(),
             false => format!(
@@ -302,7 +322,7 @@ fn main() -> Result<()> {
         data.push(PlotData::new(
             display,
             args.buffer,
-            Style::default().fg(Color::Indexed(idx as u8 + 2)),
+            Style::default().fg(color),
             args.simple_graphics,
         ));
     }
