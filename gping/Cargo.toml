@@ -11,7 +11,7 @@ build = "build.rs"
 
 [dependencies]
 pinger = { version = "^0.3.6", path = "../pinger" }
-structopt = "0.3.23"
+structopt = "0.3.26"
 tui = { version = "0.16.0", features = ["crossterm"], default_features = false }
 crossterm = "0.21.0"
 anyhow = "1.0.43"
