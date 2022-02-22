@@ -13,7 +13,7 @@ build = "build.rs"
 pinger = { version = "^0.3.6", path = "../pinger" }
 structopt = "0.3.26"
 tui = { version = "0.17.0", features = ["crossterm"], default_features = false }
-crossterm = "0.21.0"
+crossterm = "0.22.1"
 anyhow = "1.0.55"
 dns-lookup = "1.0.8"
 chrono = "0.4.19"
