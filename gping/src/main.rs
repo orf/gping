@@ -1,7 +1,6 @@
 use crate::plot_data::PlotData;
 use anyhow::{anyhow, Result};
 use chrono::prelude::*;
-use const_format::formatcp;
 use crossterm::event::{KeyEvent, KeyModifiers};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event as CEvent, KeyCode},
@@ -33,7 +32,7 @@ mod colors;
 mod plot_data;
 
 use colors::Colors;
-use shadow_rs::shadow;
+use shadow_rs::{formatcp, shadow};
 
 shadow!(build);
 
