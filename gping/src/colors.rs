@@ -49,7 +49,7 @@ where
     }
 }
 
-fn try_color_from_string(string: &String) -> Result<Color> {
+fn try_color_from_string(string: &str) -> Result<Color> {
     let mut characters = string.chars();
 
     let color = if let Some('#') = characters.next() {

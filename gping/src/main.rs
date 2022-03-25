@@ -138,8 +138,7 @@ impl App {
         let iter = self
             .data
             .iter()
-            .map(|b| b.data.as_slice())
-            .flatten()
+            .flat_map(|b| b.data.as_slice())
             .map(|v| v.1);
         let min = iter.clone().fold(f64::INFINITY, |a, b| a.min(b));
         let max = iter.fold(0f64, |a, b| a.max(b));
