@@ -6,4 +6,9 @@ members = [
 ]
 
 [profile.release]
+# From https://github.com/johnthagen/min-sized-rust
 lto = true
+# Optimize for size
+opt-level = "z"
+codegen-units = 1
+strip = "debuginfo"

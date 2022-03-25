@@ -105,7 +105,7 @@ struct Args {
             codes are accepted in the form of '#RRGGBB' or the following color \
             names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', \
             'gray', 'dark-gray', 'light-red', 'light-green', 'light-yellow', \
-            'light-blue', 'light-magenta', light-cyan', and 'white'\
+            'light-blue', 'light-magenta', 'light-cyan', and 'white'\
         "
     )]
     color_codes_or_names: Vec<String>,

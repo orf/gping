@@ -7,6 +7,12 @@ Ping, but with a graph.
 
 ![](./images/readme-example.gif)
 
+Comes with the following super-powers:
+* Graph the ping time for multiple hosts
+* Graph the _execution time_ for commands via the `--cmd` flag
+* Custom colours
+* Windows, Mac and Linux support
+
 Table of Contents
 =================
 
@@ -51,11 +57,11 @@ Just run `gping [host]`.
 
 ```bash
 $ gping --help
-gping 1.2.0
+gping 1.3.0
 Ping, but with a graph.
 
 USAGE:
-    gping [FLAGS] [OPTIONS] [hosts-or-commands]...
+    gping [FLAGS] [OPTIONS] <hosts-or-commands>...
 
 FLAGS:
         --cmd                Graph the execution time for a list of commands rather than pinging hosts
@@ -66,8 +72,20 @@ FLAGS:
     -V, --version            Prints version information
 
 OPTIONS:
-    -b, --buffer <buffer>                    Determines the number of seconds to display in the graph. [default: 30]
-    -n, --watch-interval <watch-interval>    Watch interval seconds (provide partial seconds like '0.5') [default: 0.5]
+    -b, --buffer <buffer>
+            Determines the number of seconds to display in the graph. [default: 30]
+
+    -c, --color <color>...
+            Assign color to a graph entry. This option can be defined more than once and the order which the colors are
+            provided will be matched against the hosts or commands passed to gping. Hexadecimal RGB color codes are
+            accepted in the form of '#RRGGBB' or the following color names: 'black', 'red', 'green', 'yellow', 'blue',
+            'magenta', 'cyan', 'gray', 'dark-gray', 'light-red', 'light-green', 'light-yellow', 'light-blue', 'light-
+            magenta', 'light-cyan', and 'white'
+        --horizontal-margin <horizontal-margin>    Horizontal margin around the graph (left and right) [default: 0]
+        --vertical-margin <vertical-margin>        Vertical margin around the graph (top and bottom) [default: 1]
+    -n, --watch-interval <watch-interval>
+            Watch interval seconds (provide partial seconds like '0.5'). Default for ping is 0.2, default for cmd is
+            0.5.
 
 ARGS:
     <hosts-or-commands>...    Hosts or IPs to ping, or commands to run if --cmd is provided.
