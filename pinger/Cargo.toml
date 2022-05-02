@@ -12,7 +12,7 @@ anyhow = "1.0.56"
 regex = "1.5.5"
 lazy_static = "1.4.0"
 os_info = { version = "3.2.0", default_features = false }
-thiserror = "1.0.30"
+thiserror = "1.0.31"
 
 [target.'cfg(windows)'.dependencies]
 winping = "0.10.1"
