@@ -281,7 +281,7 @@ fn start_ping_thread(
 fn get_host_ipaddr(host: &str, force_ipv4: bool, force_ipv6: bool) -> Result<String> {
     let ipaddr: Vec<IpAddr> = match lookup_host(host) {
         Ok(ip) => ip,
-        Err(_) => return Err(anyhow!("Could not resolve hostname {}", host)),
+        Err(e) => return Err(anyhow!("Could not resolve hostname {}", host).context(e)),
     };
     let ipaddr = if force_ipv4 {
         ipaddr
