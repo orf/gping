@@ -14,7 +14,7 @@ pinger = { version = "^0.4.1", path = "../pinger" }
 structopt = "0.3.26"
 tui = { version = "0.18.0", features = ["crossterm"], default_features = false }
 crossterm = "0.23.2"
-anyhow = "1.0.57"
+anyhow = "1.0.61"
 dns-lookup = "1.0.8"
 chrono = "0.4.19"
 itertools = "0.10.3"
