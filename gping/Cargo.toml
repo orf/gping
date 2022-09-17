@@ -19,7 +19,7 @@ dns-lookup = "1.0.8"
 chrono = "0.4.19"
 itertools = "0.10.3"
 shadow-rs = "0.16.3"
-const_format = "0.2.24"
+const_format = "0.2.26"
 read_color = "1.0.0"
 
 [build-dependencies]
