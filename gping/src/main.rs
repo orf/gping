@@ -118,7 +118,7 @@ struct Args {
             can be City name like aws:singapore or region name like \
             aws:ap-southeast-3.\
         "
-        )]
+    )]
     region: Vec<String>,
 }
 
@@ -319,14 +319,13 @@ fn main() -> Result<()> {
 
     let colors = Colors::from(args.color_codes_or_names.iter());
     let mut hosts_or_commands = Vec::from(args.hosts_or_commands.clone());
-    for r in args.region.iter(){
+    for r in args.region.iter() {
         match region_map::try_host_from_aws_region(&r) {
             Ok(reg) => hosts_or_commands.push(reg),
             _ => (),
         }
     }
 
-    
     for (host_or_cmd, color) in hosts_or_commands.iter().zip(colors) {
         let color = color?;
         let display = match args.cmd {
