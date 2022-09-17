@@ -13,11 +13,11 @@ build = "build.rs"
 pinger = { version = "^0.4.1", path = "../pinger" }
 structopt = "0.3.26"
 tui = { version = "0.18.0", features = ["crossterm"], default_features = false }
-crossterm = "0.23.2"
+crossterm = "0.25.0"
 anyhow = "1.0.65"
 dns-lookup = "1.0.8"
 chrono = "0.4.19"
-itertools = "0.10.3"
+itertools = "0.10.4"
 shadow-rs = "0.16.3"
 const_format = "0.2.24"
 read_color = "1.0.0"
