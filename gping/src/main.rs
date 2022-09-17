@@ -30,6 +30,7 @@ use tui::Terminal;
 
 mod colors;
 mod plot_data;
+mod region_map;
 
 use colors::Colors;
 use shadow_rs::{formatcp, shadow};
@@ -64,7 +65,7 @@ struct Args {
     watch_interval: Option<f32>,
     #[structopt(
         help = "Hosts or IPs to ping, or commands to run if --cmd is provided.",
-        required = true
+        required_unless = "region"
     )]
     hosts_or_commands: Vec<String>,
     #[structopt(
@@ -109,6 +110,16 @@ struct Args {
         "
     )]
     color_codes_or_names: Vec<String>,
+    #[structopt(
+        name = "region",
+        long = "region",
+        help = "\
+            Shortcut to test Cloud region for performance. The region \
+            can be City name like aws:singapore or region name like \
+            aws:ap-southeast-3.\
+        "
+        )]
+    region: Vec<String>,
 }
 
 struct App {
@@ -307,7 +318,16 @@ fn main() -> Result<()> {
     let mut data = vec![];
 
     let colors = Colors::from(args.color_codes_or_names.iter());
-    for (host_or_cmd, color) in args.hosts_or_commands.iter().zip(colors) {
+    let mut hosts_or_commands = Vec::from(args.hosts_or_commands.clone());
+    for r in args.region.iter(){
+        match region_map::try_host_from_aws_region(&r) {
+            Ok(reg) => hosts_or_commands.push(reg),
+            _ => (),
+        }
+    }
+
+    
+    for (host_or_cmd, color) in hosts_or_commands.iter().zip(colors) {
         let color = color?;
         let display = match args.cmd {
             true => host_or_cmd.to_string(),
@@ -341,7 +361,7 @@ fn main() -> Result<()> {
 
     let killed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
-    for (host_id, host_or_cmd) in args.hosts_or_commands.iter().cloned().enumerate() {
+    for (host_id, host_or_cmd) in hosts_or_commands.iter().cloned().enumerate() {
         if args.cmd {
             let cmd_thread = start_cmd_thread(
                 &host_or_cmd,
