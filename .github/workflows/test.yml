@@ -47,7 +47,7 @@ jobs:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Run
+      - name: Run tests
         uses: actions-rs/cargo@v1
         with:
           command: test

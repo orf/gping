@@ -100,24 +100,18 @@ impl Parser for LinuxParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use os_info::Type;
 
     #[test]
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     fn test_linux_detection() {
-        let ping_type = detect_linux_ping();
+        use os_info::Type;
+        let ping_type = detect_linux_ping().expect("Error getting ping");
         match os_info::get().os_type() {
             Type::Alpine => {
-                assert_eq!(
-                    ping_type.expect("Error getting ping"),
-                    LinuxPingType::BusyBox
-                )
+                assert_eq!(ping_type, LinuxPingType::BusyBox)
             }
             Type::Ubuntu => {
-                assert_eq!(
-                    ping_type.expect("Error getting ping"),
-                    LinuxPingType::IPTools
-                )
+                assert_eq!(ping_type, LinuxPingType::IPTools)
             }
             _ => {}
         }
