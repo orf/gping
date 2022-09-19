@@ -78,7 +78,7 @@ pub trait Pinger: Default {
     fn set_interval(&mut self, interval: Duration);
 
     fn ping_args(&self, target: String) -> Vec<String> {
-        return vec![target];
+        vec![target]
     }
 }
 

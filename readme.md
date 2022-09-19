@@ -62,7 +62,7 @@ gping 1.3.2
 Ping, but with a graph.
 
 USAGE:
-    gping [FLAGS] [OPTIONS] <hosts-or-commands>...
+    gping [FLAGS] [OPTIONS] [--] [hosts-or-commands]...
 
 FLAGS:
         --cmd                Graph the execution time for a list of commands rather than pinging hosts
@@ -83,9 +83,6 @@ OPTIONS:
             'magenta', 'cyan', 'gray', 'dark-gray', 'light-red', 'light-green', 'light-yellow', 'light-blue', 'light-
             magenta', 'light-cyan', and 'white'
         --horizontal-margin <horizontal-margin>    Horizontal margin around the graph (left and right) [default: 0]
-        --region <region>...
-            Shortcut to test Cloud region for performance. The region can be City name like aws:singapore or region name
-            like aws:ap-southeast-3.
         --vertical-margin <vertical-margin>        Vertical margin around the graph (top and bottom) [default: 1]
     -n, --watch-interval <watch-interval>
             Watch interval seconds (provide partial seconds like '0.5'). Default for ping is 0.2, default for cmd is

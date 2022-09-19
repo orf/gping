@@ -34,7 +34,6 @@ mod region_map;
 
 use colors::Colors;
 use shadow_rs::{formatcp, shadow};
-use gping::region_map::try_host_from_cloud_region;
 
 shadow!(build);
 
@@ -66,7 +65,6 @@ struct Args {
     watch_interval: Option<f32>,
     #[structopt(
         help = "Hosts or IPs to ping, or commands to run if --cmd is provided. Can use cloud shorthands like aws:eu-west-1.",
-        required_unless = "region"
     )]
     hosts_or_commands: Vec<String>,
     #[structopt(
@@ -110,17 +108,7 @@ struct Args {
             'light-blue', 'light-magenta', 'light-cyan', and 'white'\
         "
     )]
-    color_codes_or_names: Vec<String>,
-    #[structopt(
-        name = "region",
-        long = "region",
-        help = "\
-            Shortcut to test Cloud region for performance. The region \
-            can be City name like aws:singapore or region name like \
-            aws:ap-southeast-3.\
-        "
-    )]
-    region: Vec<String>,
+    color_codes_or_names: Vec<String>
 }
 
 struct App {
@@ -183,11 +171,11 @@ impl App {
         let upper = Local::from_utc_datetime(&Local, &upper_utc);
         let diff = (upper - lower) / 2;
         let midpoint = lower + diff;
-        return vec![
+        vec![
             Span::raw(format!("{:?}", lower.time())),
             Span::raw(format!("{:?}", midpoint.time())),
             Span::raw(format!("{:?}", upper.time())),
-        ];
+        ]
     }
 
     fn y_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span> {
@@ -319,8 +307,8 @@ fn main() -> Result<()> {
     let mut data = vec![];
 
     let colors = Colors::from(args.color_codes_or_names.iter());
-    let mut hosts_or_commands: Vec<String> = args.hosts_or_commands.clone().into_iter().map(|s| {
-        match try_host_from_cloud_region(&s) {
+    let hosts_or_commands: Vec<String> = args.hosts_or_commands.clone().into_iter().map(|s| {
+        match region_map::try_host_from_cloud_region(&s) {
             None => s,
             Some(new_domain) => new_domain
         }
