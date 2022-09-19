@@ -1,6 +1,6 @@
 [package]
 name = "pinger"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["Tom Forbes <tom@tomforb.es>"]
 edition = "2018"
 license = "MIT"
