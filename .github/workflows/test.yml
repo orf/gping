@@ -93,7 +93,7 @@ jobs:
       image: alpine:latest
     steps:
       - uses: actions/checkout@master
-      - run: apk add libgcc gcc
+      - run: apk add libgcc gcc musl-dev
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
