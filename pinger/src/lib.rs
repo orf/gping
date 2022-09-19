@@ -14,15 +14,15 @@
 /// }
 /// ```
 use anyhow::Result;
-use os_info::Type;
 use regex::Regex;
 use std::fmt::Formatter;
 use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
 use std::time::Duration;
 use std::{fmt, thread};
 use thiserror::Error;
+use crate::linux::{detect_linux_ping, LinuxPingType, PingDetectionError};
 
 #[macro_use]
 extern crate lazy_static;
@@ -36,25 +36,29 @@ pub mod windows;
 #[cfg(test)]
 mod test;
 
+pub fn run_ping(args: Vec<String>, capture_stdout: bool) -> Child {
+    Command::new("ping")
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(if capture_stdout { Stdio::piped() } else { Stdio::null() })
+        // Required to ensure that the output is formatted in the way we expect, not
+        // using locale specific delimiters.
+        .env("LANG", "C")
+        .env("LC_ALL", "C")
+        .spawn()
+        .expect("Failed to run ping")
+}
+
 pub trait Pinger: Default {
     fn start<P>(&self, target: String) -> Result<mpsc::Receiver<PingResult>>
-    where
-        P: Parser,
+        where
+            P: Parser,
     {
         let (tx, rx) = mpsc::channel();
         let args = self.ping_args(target);
 
         thread::spawn(move || {
-            let mut child = Command::new("ping")
-                .args(args)
-                .stdout(Stdio::piped())
-                .stderr(Stdio::null())
-                // Required to ensure that the output is formatted in the way we expect, not
-                // using locale specific delimiters.
-                .env("LANG", "C")
-                .env("LC_ALL", "C")
-                .spawn()
-                .expect("Failed to run ping");
+            let mut child = run_ping(args, false);
             let parser = P::default();
             let stdout = child.stdout.take().expect("child did not have a stdout");
             let reader = BufReader::new(stdout).lines();
@@ -125,8 +129,8 @@ impl fmt::Display for PingResult {
 
 #[derive(Error, Debug)]
 pub enum PingError {
-    #[error("Unsupported OS {0}")]
-    UnsupportedOS(String),
+    #[error("Could not detect ping command type")]
+    UnsupportedPing(#[from] PingDetectionError),
     #[error("Invalid or unresolvable hostname {0}")]
     HostnameError(String),
 }
@@ -138,48 +142,32 @@ pub fn ping(addr: String) -> Result<mpsc::Receiver<PingResult>> {
 
 /// Start pinging a an address. The address can be either a hostname or an IP address.
 pub fn ping_with_interval(addr: String, interval: Duration) -> Result<mpsc::Receiver<PingResult>> {
-    let os_type = os_info::get().os_type();
-    match os_type {
-        #[cfg(windows)]
-        Type::Windows => {
-            let mut p = windows::WindowsPinger::default();
-            p.set_interval(interval);
-            p.start::<windows::WindowsParser>(addr)
-        }
-        Type::Amazon
-        | Type::Arch
-        | Type::CentOS
-        | Type::Debian
-        | Type::EndeavourOS
-        | Type::Fedora
-        | Type::Linux
-        | Type::NixOS
-        | Type::Manjaro
-        | Type::Mint
-        | Type::openSUSE
-        | Type::OracleLinux
-        | Type::Redhat
-        | Type::RedHatEnterprise
-        | Type::SUSE
-        | Type::Ubuntu
-        | Type::Pop
-        | Type::Solus
-        | Type::Raspbian
-        | Type::Android => {
-            let mut p = linux::LinuxPinger::default();
-            p.set_interval(interval);
-            p.start::<linux::LinuxParser>(addr)
-        }
-        Type::Alpine => {
-            let mut p = linux::AlpinePinger::default();
-            p.set_interval(interval);
-            p.start::<linux::LinuxParser>(addr)
-        }
-        Type::Macos => {
+    #[cfg(windows)]
+    {
+        let mut p = windows::WindowsPinger::default();
+        p.set_interval(interval);
+        return p.start::<windows::WindowsParser>(addr);
+    }
+    #[cfg(unix)]
+    {
+        if cfg!(target_os = "macos") {
             let mut p = macos::MacOSPinger::default();
             p.set_interval(interval);
             p.start::<macos::MacOSParser>(addr)
+        } else {
+            match detect_linux_ping() {
+                Ok(LinuxPingType::BusyBox) => {
+                    let mut p = linux::LinuxPinger::default();
+                    p.set_interval(interval);
+                    p.start::<linux::LinuxParser>(addr)
+                }
+                Ok(LinuxPingType::IPTools) => {
+                    let mut p = linux::AlpinePinger::default();
+                    p.set_interval(interval);
+                    p.start::<linux::LinuxParser>(addr)
+                }
+                Err(e) => Err(PingError::UnsupportedPing(e))?
+            }
         }
-        _ => Err(PingError::UnsupportedOS(os_type.to_string()).into()),
     }
 }

@@ -266,16 +266,16 @@ fn start_ping_thread(
     watch_interval: Option<f32>,
     ping_tx: Sender<Event>,
     kill_event: Arc<AtomicBool>,
-) -> JoinHandle<Result<()>> {
+) -> Result<JoinHandle<Result<()>>> {
     let interval = Duration::from_millis((watch_interval.unwrap_or(0.2) * 1000.0) as u64);
     // Pump ping messages into the queue
-    thread::spawn(move || -> Result<()> {
-        let stream = ping_with_interval(host, interval)?;
+    let stream = ping_with_interval(host, interval)?;
+    Ok(thread::spawn(move || -> Result<()> {
         while !kill_event.load(Ordering::Acquire) {
             ping_tx.send(Event::Update(host_id, stream.recv()?.into()))?;
         }
         Ok(())
-    })
+    }))
 }
 
 fn get_host_ipaddr(host: &str, force_ipv4: bool, force_ipv6: bool) -> Result<String> {
@@ -335,16 +335,6 @@ fn main() -> Result<()> {
         ));
     }
 
-    let mut app = App::new(data, args.buffer);
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-
-    let mut terminal = Terminal::new(backend)?;
-
-    terminal.clear()?;
-
     let (key_tx, rx) = mpsc::channel();
 
     let mut threads = vec![];
@@ -368,9 +358,17 @@ fn main() -> Result<()> {
                 args.watch_interval,
                 key_tx.clone(),
                 std::sync::Arc::clone(&killed),
-            ));
+            )?);
         }
     }
+
+    let mut app = App::new(data, args.buffer);
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+    terminal.clear()?;
 
     // Pump keyboard messages into the queue
     let killed_thread = std::sync::Arc::clone(&killed);

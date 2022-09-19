@@ -11,7 +11,6 @@ repository = "https://github.com/orf/pinger/"
 anyhow = "1.0.65"
 regex = "1.6.0"
 lazy_static = "1.4.0"
-os_info = { version = "3.5.0", default_features = false }
 thiserror = "1.0.35"
 
 [target.'cfg(windows)'.dependencies]
