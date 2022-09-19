@@ -86,6 +86,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  test_alpine:
+    name: Test in Alpine
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+
   cross_builds:
     name: Cross-build
     runs-on: ubuntu-latest
