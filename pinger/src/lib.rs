@@ -156,12 +156,12 @@ pub fn ping_with_interval(addr: String, interval: Duration) -> Result<mpsc::Rece
             p.start::<macos::MacOSParser>(addr)
         } else {
             match detect_linux_ping() {
-                Ok(LinuxPingType::BusyBox) => {
+                Ok(LinuxPingType::IPTools) => {
                     let mut p = linux::LinuxPinger::default();
                     p.set_interval(interval);
                     p.start::<linux::LinuxParser>(addr)
                 }
-                Ok(LinuxPingType::IPTools) => {
+                Ok(LinuxPingType::BusyBox) => {
                     let mut p = linux::AlpinePinger::default();
                     p.set_interval(interval);
                     p.start::<linux::LinuxParser>(addr)
