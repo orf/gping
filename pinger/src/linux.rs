@@ -99,11 +99,10 @@ impl Parser for LinuxParser {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     #[cfg(target_os = "linux")]
     fn test_linux_detection() {
+        use super::*;
         use os_info::Type;
         let ping_type = detect_linux_ping().expect("Error getting ping");
         match os_info::get().os_type() {
