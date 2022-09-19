@@ -64,7 +64,7 @@ struct Args {
     )]
     watch_interval: Option<f32>,
     #[structopt(
-        help = "Hosts or IPs to ping, or commands to run if --cmd is provided. Can use cloud shorthands like aws:eu-west-1.",
+        help = "Hosts or IPs to ping, or commands to run if --cmd is provided. Can use cloud shorthands like aws:eu-west-1."
     )]
     hosts_or_commands: Vec<String>,
     #[structopt(
@@ -108,7 +108,7 @@ struct Args {
             'light-blue', 'light-magenta', 'light-cyan', and 'white'\
         "
     )]
-    color_codes_or_names: Vec<String>
+    color_codes_or_names: Vec<String>,
 }
 
 struct App {
@@ -307,12 +307,15 @@ fn main() -> Result<()> {
     let mut data = vec![];
 
     let colors = Colors::from(args.color_codes_or_names.iter());
-    let hosts_or_commands: Vec<String> = args.hosts_or_commands.clone().into_iter().map(|s| {
-        match region_map::try_host_from_cloud_region(&s) {
+    let hosts_or_commands: Vec<String> = args
+        .hosts_or_commands
+        .clone()
+        .into_iter()
+        .map(|s| match region_map::try_host_from_cloud_region(&s) {
             None => s,
-            Some(new_domain) => new_domain
-        }
-    }).collect();
+            Some(new_domain) => new_domain,
+        })
+        .collect();
 
     for (host_or_cmd, color) in hosts_or_commands.iter().zip(colors) {
         let color = color?;

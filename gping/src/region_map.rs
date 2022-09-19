@@ -3,7 +3,7 @@ type Host = String;
 pub fn try_host_from_cloud_region(query: &str) -> Option<Host> {
     match query.split_once(':') {
         Some(("aws", region)) => Some(format!("ec2.{}.amazonaws.com", region)),
-        _ => None
+        _ => None,
     }
 }
 
@@ -21,17 +21,11 @@ mod tests {
 
     #[test]
     fn test_host_from_foo() {
-        assert_eq!(
-            try_host_from_cloud_region("foo:bar"),
-            None
-        );
+        assert_eq!(try_host_from_cloud_region("foo:bar"), None);
     }
 
     #[test]
     fn test_invalid_input() {
-        assert_eq!(
-            try_host_from_cloud_region("foo"),
-            None
-        );
+        assert_eq!(try_host_from_cloud_region("foo"), None);
     }
 }
