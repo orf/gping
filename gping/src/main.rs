@@ -34,6 +34,7 @@ mod region_map;
 
 use colors::Colors;
 use shadow_rs::{formatcp, shadow};
+use gping::region_map::try_host_from_cloud_region;
 
 shadow!(build);
 
@@ -64,7 +65,7 @@ struct Args {
     )]
     watch_interval: Option<f32>,
     #[structopt(
-        help = "Hosts or IPs to ping, or commands to run if --cmd is provided.",
+        help = "Hosts or IPs to ping, or commands to run if --cmd is provided. Can use cloud shorthands like aws:eu-west-1.",
         required_unless = "region"
     )]
     hosts_or_commands: Vec<String>,
@@ -318,13 +319,12 @@ fn main() -> Result<()> {
     let mut data = vec![];
 
     let colors = Colors::from(args.color_codes_or_names.iter());
-    let mut hosts_or_commands = Vec::from(args.hosts_or_commands.clone());
-    for r in args.region.iter() {
-        match region_map::try_host_from_aws_region(&r) {
-            Ok(reg) => hosts_or_commands.push(reg),
-            _ => (),
+    let mut hosts_or_commands: Vec<String> = args.hosts_or_commands.clone().into_iter().map(|s| {
+        match try_host_from_cloud_region(&s) {
+            None => s,
+            Some(new_domain) => new_domain
         }
-    }
+    }).collect();
 
     for (host_or_cmd, color) in hosts_or_commands.iter().zip(colors) {
         let color = color?;
