@@ -43,7 +43,6 @@ pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {
             stdout: first_two_lines_stout,
             stderr: first_two_lines_stderr,
         })
-        // Err(anyhow!(format!("Cannot detect ping type. ")))
     }
 }
 
