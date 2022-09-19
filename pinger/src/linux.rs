@@ -1,12 +1,13 @@
-use crate::{Parser, PingResult, Pinger, run_ping};
+use crate::{run_ping, Parser, PingResult, Pinger};
+use anyhow::Context;
 use regex::Regex;
 use std::time::Duration;
-use anyhow::Context;
 use thiserror::Error;
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum LinuxPingType {
     BusyBox,
-    IPTools
+    IPTools,
 }
 
 #[derive(Error, Debug)]
@@ -14,16 +15,18 @@ pub enum PingDetectionError {
     #[error("Could not detect ping. Stderr: {stderr:?}\nStdout: {stdout:?}")]
     UnknownPing {
         stderr: Vec<String>,
-        stdout: Vec<String>
+        stdout: Vec<String>,
     },
     #[error(transparent)]
-    CommandError(#[from] anyhow::Error)
+    CommandError(#[from] anyhow::Error),
 }
 
 pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {
     // Err(PingDetectionError::Thing)
     let child = run_ping(vec!["-V".to_string()], true);
-    let output = child.wait_with_output().context("Error getting ping stdout/stderr")?;
+    let output = child
+        .wait_with_output()
+        .context("Error getting ping stdout/stderr")?;
     let stdout = String::from_utf8(output.stdout).context("Error decoding ping stdout")?;
     let stderr = String::from_utf8(output.stderr).context("Error decoding ping stderr")?;
 
@@ -32,8 +35,10 @@ pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {
     } else if stdout.contains("iputils") {
         Ok(LinuxPingType::IPTools)
     } else {
-        let first_two_lines_stderr: Vec<String> = stderr.lines().take(2).map(str::to_string).collect();
-        let first_two_lines_stout: Vec<String> = stdout.lines().take(2).map(str::to_string).collect();
+        let first_two_lines_stderr: Vec<String> =
+            stderr.lines().take(2).map(str::to_string).collect();
+        let first_two_lines_stout: Vec<String> =
+            stdout.lines().take(2).map(str::to_string).collect();
         Err(PingDetectionError::UnknownPing {
             stdout: first_two_lines_stout,
             stderr: first_two_lines_stderr,
@@ -41,7 +46,6 @@ pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {
         // Err(anyhow!(format!("Cannot detect ping type. ")))
     }
 }
-
 
 #[derive(Default)]
 pub struct LinuxPinger {
@@ -91,5 +95,32 @@ impl Parser for LinuxParser {
             return Some(PingResult::Timeout(line));
         }
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use os_info::Type;
+
+    #[test]
+    #[cfg(unix)]
+    fn test_linux_detection() {
+        let ping_type = detect_linux_ping();
+        match os_info::get().os_type() {
+            Type::Alpine => {
+                assert_eq!(
+                    ping_type.expect("Error getting ping"),
+                    LinuxPingType::BusyBox
+                )
+            }
+            Type::Ubuntu => {
+                assert_eq!(
+                    ping_type.expect("Error getting ping"),
+                    LinuxPingType::IPTools
+                )
+            }
+            _ => {}
+        }
     }
 }

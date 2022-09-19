@@ -16,3 +16,6 @@ thiserror = "1.0.35"
 [target.'cfg(windows)'.dependencies]
 winping = "0.10.1"
 dns-lookup = "1.0.8"
+
+[dev-dependencies]
+os_info = "3.5.0"

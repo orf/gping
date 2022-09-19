@@ -112,6 +112,11 @@ jobs:
           command: check
           args: --target ${{ matrix.target }}
       - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: test
+          args: --target ${{ matrix.target }}
+      - uses: actions-rs/cargo@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           use-cross: true

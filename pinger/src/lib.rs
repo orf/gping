@@ -1,3 +1,4 @@
+use crate::linux::{detect_linux_ping, LinuxPingType, PingDetectionError};
 /// Pinger
 /// This crate exposes a simple function to ping remote hosts across different operating systems.
 /// Example:
@@ -22,7 +23,6 @@ use std::sync::mpsc;
 use std::time::Duration;
 use std::{fmt, thread};
 use thiserror::Error;
-use crate::linux::{detect_linux_ping, LinuxPingType, PingDetectionError};
 
 #[macro_use]
 extern crate lazy_static;
@@ -40,7 +40,11 @@ pub fn run_ping(args: Vec<String>, capture_stdout: bool) -> Child {
     Command::new("ping")
         .args(args)
         .stdout(Stdio::piped())
-        .stderr(if capture_stdout { Stdio::piped() } else { Stdio::null() })
+        .stderr(if capture_stdout {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         // Required to ensure that the output is formatted in the way we expect, not
         // using locale specific delimiters.
         .env("LANG", "C")
@@ -51,8 +55,8 @@ pub fn run_ping(args: Vec<String>, capture_stdout: bool) -> Child {
 
 pub trait Pinger: Default {
     fn start<P>(&self, target: String) -> Result<mpsc::Receiver<PingResult>>
-        where
-            P: Parser,
+    where
+        P: Parser,
     {
         let (tx, rx) = mpsc::channel();
         let args = self.ping_args(target);
@@ -166,7 +170,7 @@ pub fn ping_with_interval(addr: String, interval: Duration) -> Result<mpsc::Rece
                     p.set_interval(interval);
                     p.start::<linux::LinuxParser>(addr)
                 }
-                Err(e) => Err(PingError::UnsupportedPing(e))?
+                Err(e) => Err(PingError::UnsupportedPing(e))?,
             }
         }
     }
