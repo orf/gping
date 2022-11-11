@@ -58,7 +58,7 @@ shorthands like `aws:eu-west-1` or `aws:ca-central-1` to ping specific cloud reg
 
 ```bash
 $ gping --help
-gping 1.3.2
+gping 1.4.0
 Ping, but with a graph.
 
 USAGE:
