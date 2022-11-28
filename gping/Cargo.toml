@@ -16,7 +16,7 @@ tui = { version = "0.19.0", features = ["crossterm"], default_features = false }
 crossterm = "0.25.0"
 anyhow = "1.0.65"
 dns-lookup = "1.0.8"
-chrono = "0.4.22"
+chrono = "0.4.23"
 itertools = "0.10.5"
 shadow-rs = "0.18.0"
 const_format = "0.2.30"
