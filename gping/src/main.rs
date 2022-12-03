@@ -1,6 +1,7 @@
 use crate::plot_data::PlotData;
 use anyhow::{anyhow, Result};
 use chrono::prelude::*;
+use clap::Parser;
 use crossterm::event::{KeyEvent, KeyModifiers};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event as CEvent, KeyCode},
@@ -20,7 +21,6 @@ use std::sync::{mpsc, Arc};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
-use structopt::StructOpt;
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
 use tui::style::{Color, Style};
@@ -49,25 +49,25 @@ build_env: {},{}"#,
     build::RUST_CHANNEL
 );
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "gping", about = "Ping, but with a graph.", version=VERSION_INFO)]
+#[derive(Parser, Debug)]
+#[command(author, name = "gping", about = "Ping, but with a graph.", version=VERSION_INFO)]
 struct Args {
-    #[structopt(
+    #[arg(
         long,
         help = "Graph the execution time for a list of commands rather than pinging hosts"
     )]
     cmd: bool,
-    #[structopt(
-        short = "n",
+    #[arg(
+        short = 'n',
         long,
         help = "Watch interval seconds (provide partial seconds like '0.5'). Default for ping is 0.2, default for cmd is 0.5."
     )]
     watch_interval: Option<f32>,
-    #[structopt(
+    #[arg(
         help = "Hosts or IPs to ping, or commands to run if --cmd is provided. Can use cloud shorthands like aws:eu-west-1."
     )]
     hosts_or_commands: Vec<String>,
-    #[structopt(
+    #[arg(
         short,
         long,
         default_value = "30",
@@ -75,28 +75,28 @@ struct Args {
     )]
     buffer: u64,
     /// Resolve ping targets to IPv4 address
-    #[structopt(short = "4", conflicts_with = "ipv6")]
+    #[arg(short = '4', conflicts_with = "ipv6")]
     ipv4: bool,
     /// Resolve ping targets to IPv6 address
-    #[structopt(short = "6", conflicts_with = "ipv4")]
+    #[arg(short = '6', conflicts_with = "ipv4")]
     ipv6: bool,
-    #[structopt(short = "s", long, help = "Uses dot characters instead of braille")]
+    #[arg(short = 's', long, help = "Uses dot characters instead of braille")]
     simple_graphics: bool,
-    #[structopt(
+    #[arg(
         long,
         help = "Vertical margin around the graph (top and bottom)",
         default_value = "1"
     )]
     vertical_margin: u16,
-    #[structopt(
+    #[arg(
         long,
         help = "Horizontal margin around the graph (left and right)",
         default_value = "0"
     )]
     horizontal_margin: u16,
-    #[structopt(
+    #[arg(
         name = "color",
-        short = "c",
+        short = 'c',
         long = "color",
         help = "\
             Assign color to a graph entry. This option can be defined more than \
@@ -165,8 +165,10 @@ impl App {
     }
 
     fn x_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span> {
-        let lower_utc = NaiveDateTime::from_timestamp_opt(bounds[0] as i64, 0).expect("Error parsing x-axis bounds 0");
-        let upper_utc = NaiveDateTime::from_timestamp_opt(bounds[1] as i64, 0).expect("Error parsing x-asis bounds 1");
+        let lower_utc = NaiveDateTime::from_timestamp_opt(bounds[0] as i64, 0)
+            .expect("Error parsing x-axis bounds 0");
+        let upper_utc = NaiveDateTime::from_timestamp_opt(bounds[1] as i64, 0)
+            .expect("Error parsing x-asis bounds 1");
         let lower = Local::from_utc_datetime(&Local, &lower_utc);
         let upper = Local::from_utc_datetime(&Local, &upper_utc);
         let diff = (upper - lower) / 2;
@@ -302,7 +304,7 @@ fn get_host_ipaddr(host: &str, force_ipv4: bool, force_ipv6: bool) -> Result<Str
 }
 
 fn main() -> Result<()> {
-    let args = Args::from_args();
+    let args = Args::parse();
 
     let mut data = vec![];
 

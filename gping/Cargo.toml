@@ -11,7 +11,6 @@ build = "build.rs"
 
 [dependencies]
 pinger = { version = "^0.5.0", path = "../pinger" }
-structopt = "0.3.26"
 tui = { version = "0.19.0", features = ["crossterm"], default_features = false }
 crossterm = "0.25.0"
 anyhow = "1.0.65"
@@ -21,6 +20,7 @@ itertools = "0.10.5"
 shadow-rs = "0.18.0"
 const_format = "0.2.30"
 read_color = "1.0.0"
+clap = { version = "4.0.29", features = ["derive"] }
 
 [build-dependencies]
 shadow-rs = "0.18.0"
