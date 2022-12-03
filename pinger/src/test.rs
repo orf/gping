@@ -1,11 +1,12 @@
 #[cfg(test)]
 mod tests {
+    use crate::bsd::BSDParser;
     use crate::linux::LinuxParser;
-    // use crate::alpine::AlpineParser;
     use crate::macos::MacOSParser;
+    use crate::{Parser, PingResult};
+
     #[cfg(windows)]
     use crate::windows::WindowsParser;
-    use crate::{Parser, PingResult};
 
     fn test_parser<T>(contents: &str)
     where
@@ -42,6 +43,26 @@ mod tests {
     #[test]
     fn macos() {
         test_parser::<MacOSParser>(include_str!("tests/macos.txt"));
+    }
+
+    #[test]
+    fn freebsd() {
+        test_parser::<BSDParser>(include_str!("tests/bsd.txt"));
+    }
+
+    #[test]
+    fn dragonfly() {
+        test_parser::<BSDParser>(include_str!("tests/bsd.txt"));
+    }
+
+    #[test]
+    fn openbsd() {
+        test_parser::<BSDParser>(include_str!("tests/bsd.txt"));
+    }
+
+    #[test]
+    fn netbsd() {
+        test_parser::<BSDParser>(include_str!("tests/bsd.txt"));
     }
 
     #[test]
