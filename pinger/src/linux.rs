@@ -19,6 +19,9 @@ pub enum PingDetectionError {
     },
     #[error(transparent)]
     CommandError(#[from] anyhow::Error),
+
+    #[error("Installed ping is not supported: {alternative}")]
+    NotSupported { alternative: String },
 }
 
 pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {
@@ -34,6 +37,10 @@ pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {
         Ok(LinuxPingType::BusyBox)
     } else if stdout.contains("iputils") {
         Ok(LinuxPingType::IPTools)
+    } else if stdout.contains("inetutils") {
+        Err(PingDetectionError::NotSupported {
+            alternative: "Please use iputils ping, not inetutils.".to_string(),
+        })
     } else {
         let first_two_lines_stderr: Vec<String> =
             stderr.lines().take(2).map(str::to_string).collect();
