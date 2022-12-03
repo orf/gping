@@ -28,7 +28,7 @@ Table of Contents
 * macOS
   * [Homebrew](https://formulae.brew.sh/formula/gping#default): `brew install gping`
   * [MacPorts](https://ports.macports.org/port/gping/): `sudo port install gping`
-* Linux (Homebrew): `brew install orf/brew/gping`
+* Linux (Homebrew): `brew install gping`
 * CentOS (and other distributions with an old glibc): Download the MUSL build from the latest release
 * Windows/ARM: 
   * Scoop: `scoop install gping`
