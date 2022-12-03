@@ -304,7 +304,11 @@ fn get_host_ipaddr(host: &str, force_ipv4: bool, force_ipv6: bool) -> Result<Str
 }
 
 fn main() -> Result<()> {
-    let args = Args::parse();
+    let args: Args = Args::parse();
+
+    if args.hosts_or_commands.is_empty() {
+        return Err(anyhow!("At least one host or command must be given (i.e gping google.com). Use --help for a full list of arguments."));
+    }
 
     let mut data = vec![];
 
