@@ -4,9 +4,9 @@ use chrono::prelude::*;
 use clap::Parser;
 use crossterm::event::{KeyEvent, KeyModifiers};
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event as CEvent, KeyCode},
+    event::{self, Event as CEvent, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{disable_raw_mode, enable_raw_mode, SetSize},
 };
 use dns_lookup::lookup_host;
 use pinger::{ping_with_interval, PingResult};
@@ -21,7 +21,7 @@ use std::sync::{mpsc, Arc};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
-use tui::backend::CrosstermBackend;
+use tui::backend::{Backend, CrosstermBackend};
 use tui::layout::{Constraint, Direction, Layout};
 use tui::style::{Color, Style};
 use tui::text::Span;
@@ -370,9 +370,14 @@ fn main() -> Result<()> {
 
     let mut app = App::new(data, args.buffer);
     enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
+    let stdout = io::stdout();
+    let mut backend = CrosstermBackend::new(stdout);
+    let rect = backend.size()?;
+    execute!(
+        backend,
+        SetSize(rect.width, rect.height),
+    )?;
+
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
@@ -486,10 +491,7 @@ fn main() -> Result<()> {
     disable_raw_mode()?;
     execute!(
         terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
     )?;
     terminal.show_cursor()?;
-
     Ok(())
 }
