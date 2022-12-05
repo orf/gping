@@ -493,5 +493,7 @@ fn main() -> Result<()> {
         terminal.backend_mut(),
     )?;
     terminal.show_cursor()?;
+    let new_size = terminal.size()?;
+    terminal.set_cursor(new_size.width, new_size.height)?;
     Ok(())
 }
