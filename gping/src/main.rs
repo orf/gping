@@ -373,10 +373,7 @@ fn main() -> Result<()> {
     let stdout = io::stdout();
     let mut backend = CrosstermBackend::new(stdout);
     let rect = backend.size()?;
-    execute!(
-        backend,
-        SetSize(rect.width, rect.height),
-    )?;
+    execute!(backend, SetSize(rect.width, rect.height),)?;
 
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
@@ -489,9 +486,7 @@ fn main() -> Result<()> {
     }
 
     disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-    )?;
+    execute!(terminal.backend_mut(),)?;
     terminal.show_cursor()?;
     let new_size = terminal.size()?;
     terminal.set_cursor(new_size.width, new_size.height)?;
