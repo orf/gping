@@ -1,3 +1,4 @@
+#[cfg(unix)]
 use crate::linux::{detect_linux_ping, LinuxPingType, PingDetectionError};
 /// Pinger
 /// This crate exposes a simple function to ping remote hosts across different operating systems.
@@ -33,6 +34,7 @@ pub mod macos;
 #[cfg(windows)]
 pub mod windows;
 
+mod bsd;
 #[cfg(test)]
 mod test;
 
@@ -154,7 +156,15 @@ pub fn ping_with_interval(addr: String, interval: Duration) -> Result<mpsc::Rece
     }
     #[cfg(unix)]
     {
-        if cfg!(target_os = "macos") {
+        if cfg!(target_os = "freebsd")
+            || cfg!(target_os = "dragonfly")
+            || cfg!(target_os = "openbsd")
+            || cfg!(target_os = "netbsd")
+        {
+            let mut p = bsd::BSDPinger::default();
+            p.set_interval(interval);
+            p.start::<bsd::BSDParser>(addr)
+        } else if cfg!(target_os = "macos") {
             let mut p = macos::MacOSPinger::default();
             p.set_interval(interval);
             p.start::<macos::MacOSParser>(addr)
