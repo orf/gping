@@ -12,6 +12,7 @@ jobs:
   build_and_test:
     name: Rust project
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -19,12 +20,15 @@ jobs:
           - os: ubuntu-latest
             bin: gping
             name: gping-Linux-x86_64.tar.gz
+            container: quay.io/pypa/manylinux_2_28_x86_64
           - os: macOS-latest
             bin: gping
             name: gping-Darwin-x86_64.tar.gz
+            container: null
           - os: windows-latest
             bin: gping.exe
             name: gping-Windows-x86_64.zip
+            container: null
     env:
       RUST_BACKTRACE: "1"
     steps:
