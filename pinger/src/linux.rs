@@ -1,4 +1,4 @@
-use crate::{run_ping, Parser, PingResult, Pinger, PingDetectionError};
+use crate::{run_ping, Parser, PingDetectionError, PingResult, Pinger};
 use anyhow::Context;
 use regex::Regex;
 use std::time::Duration;
