@@ -1,27 +1,12 @@
-use crate::{run_ping, Parser, PingResult, Pinger};
+use crate::{run_ping, Parser, PingResult, Pinger, PingDetectionError};
 use anyhow::Context;
 use regex::Regex;
 use std::time::Duration;
-use thiserror::Error;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum LinuxPingType {
     BusyBox,
     IPTools,
-}
-
-#[derive(Error, Debug)]
-pub enum PingDetectionError {
-    #[error("Could not detect ping. Stderr: {stderr:?}\nStdout: {stdout:?}")]
-    UnknownPing {
-        stderr: Vec<String>,
-        stdout: Vec<String>,
-    },
-    #[error(transparent)]
-    CommandError(#[from] anyhow::Error),
-
-    #[error("Installed ping is not supported: {alternative}")]
-    NotSupported { alternative: String },
 }
 
 pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {

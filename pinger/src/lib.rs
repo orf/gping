@@ -1,5 +1,5 @@
 #[cfg(unix)]
-use crate::linux::{detect_linux_ping, LinuxPingType, PingDetectionError};
+use crate::linux::{detect_linux_ping, LinuxPingType};
 /// Pinger
 /// This crate exposes a simple function to ping remote hosts across different operating systems.
 /// Example:
@@ -131,6 +131,20 @@ impl fmt::Display for PingResult {
             PingResult::Unknown(_) => write!(f, "Unknown"),
         }
     }
+}
+
+#[derive(Error, Debug)]
+pub enum PingDetectionError {
+    #[error("Could not detect ping. Stderr: {stderr:?}\nStdout: {stdout:?}")]
+    UnknownPing {
+        stderr: Vec<String>,
+        stdout: Vec<String>,
+    },
+    #[error(transparent)]
+    CommandError(#[from] anyhow::Error),
+
+    #[error("Installed ping is not supported: {alternative}")]
+    NotSupported { alternative: String },
 }
 
 #[derive(Error, Debug)]
