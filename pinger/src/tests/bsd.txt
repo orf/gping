@@ -1,0 +1,13 @@
+PING google.com (216.58.198.174): 56 data bytes
+64 bytes from 96.47.72.84: icmp_seq=0 ttl=50 time=111.525 ms
+ping: sendto: Host is down
+64 bytes from 96.47.72.84: icmp_seq=1 ttl=50 time=110.395 ms
+ping: sendto: No route to host
+
+-----
+
+None
+111.525ms
+None
+110.395ms
+None
