@@ -12,14 +12,15 @@ use crate::linux::{detect_linux_ping, LinuxPingType};
 ///         PingResult::Pong(duration, line) => println!("{:?} (line: {})", duration, line),
 ///         PingResult::Timeout(_) => println!("Timeout!"),
 ///         PingResult::Unknown(line) => println!("Unknown line: {}", line),
+///         PingResult::PingExited(_) => {},
 ///     }
 /// }
 /// ```
-use anyhow::Result;
+use anyhow::{Context, Result};
 use regex::Regex;
 use std::fmt::Formatter;
 use std::io::{BufRead, BufReader};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::mpsc;
 use std::time::Duration;
 use std::{fmt, thread};
@@ -38,9 +39,9 @@ mod bsd;
 #[cfg(test)]
 mod test;
 
-pub fn run_ping(args: Vec<String>, capture_stdout: bool) -> Child {
+pub fn run_ping(args: Vec<String>, capture_stdout: bool) -> Result<Child> {
     Command::new("ping")
-        .args(args)
+        .args(&args)
         .stdout(Stdio::piped())
         .stderr(if capture_stdout {
             Stdio::piped()
@@ -52,7 +53,7 @@ pub fn run_ping(args: Vec<String>, capture_stdout: bool) -> Child {
         .env("LANG", "C")
         .env("LC_ALL", "C")
         .spawn()
-        .expect("Failed to run ping")
+        .with_context(|| format!("Failed to run ping with args {:?}", &args))
 }
 
 pub trait Pinger: Default {
@@ -62,11 +63,11 @@ pub trait Pinger: Default {
     {
         let (tx, rx) = mpsc::channel();
         let args = self.ping_args(target);
+        let mut child = run_ping(args, false)?;
+        let stdout = child.stdout.take().context("child did not have a stdout")?;
 
         thread::spawn(move || {
-            let mut child = run_ping(args, false);
             let parser = P::default();
-            let stdout = child.stdout.take().expect("child did not have a stdout");
             let reader = BufReader::new(stdout).lines();
             for line in reader {
                 match line {
@@ -80,6 +81,9 @@ pub trait Pinger: Default {
                     Err(_) => break,
                 }
             }
+            let result = child.wait().expect("Child wasn't started?");
+            tx.send(PingResult::PingExited(result))
+                .expect("Error sending ping result");
         });
 
         Ok(rx)
@@ -121,6 +125,7 @@ pub enum PingResult {
     Pong(Duration, String),
     Timeout(String),
     Unknown(String),
+    PingExited(ExitStatus),
 }
 
 impl fmt::Display for PingResult {
@@ -129,6 +134,7 @@ impl fmt::Display for PingResult {
             PingResult::Pong(duration, _) => write!(f, "{:?}", duration),
             PingResult::Timeout(_) => write!(f, "Timeout"),
             PingResult::Unknown(_) => write!(f, "Unknown"),
+            PingResult::PingExited(status) => write!(f, "Exited({})", status),
         }
     }
 }

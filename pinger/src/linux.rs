@@ -11,7 +11,7 @@ pub enum LinuxPingType {
 
 pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {
     // Err(PingDetectionError::Thing)
-    let child = run_ping(vec!["-V".to_string()], true);
+    let child = run_ping(vec!["-V".to_string()], true)?;
     let output = child
         .wait_with_output()
         .context("Error getting ping stdout/stderr")?;

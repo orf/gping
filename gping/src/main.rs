@@ -14,7 +14,7 @@ use std::io;
 use std::iter;
 use std::net::IpAddr;
 use std::ops::Add;
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc};
@@ -50,7 +50,7 @@ build_env: {},{}"#,
 );
 
 #[derive(Parser, Debug)]
-#[command(author, name = "gping", about = "Ping, but with a graph.", version=VERSION_INFO)]
+#[command(author, name = "gping", about = "Ping, but with a graph.", version = VERSION_INFO)]
 struct Args {
     #[arg(
         long,
@@ -202,6 +202,7 @@ enum Update {
     Result(Duration),
     Timeout,
     Unknown,
+    Terminated(ExitStatus),
 }
 
 impl From<PingResult> for Update {
@@ -210,6 +211,7 @@ impl From<PingResult> for Update {
             PingResult::Pong(duration, _) => Update::Result(duration),
             PingResult::Timeout(_) => Update::Timeout,
             PingResult::Unknown(_) => Update::Unknown,
+            PingResult::PingExited(e) => Update::Terminated(e),
         }
     }
 }
@@ -274,8 +276,17 @@ fn start_ping_thread(
     let stream = ping_with_interval(host, interval)?;
     Ok(thread::spawn(move || -> Result<()> {
         while !kill_event.load(Ordering::Acquire) {
-            ping_tx.send(Event::Update(host_id, stream.recv()?.into()))?;
+            match stream.recv() {
+                Ok(v) => {
+                    ping_tx.send(Event::Update(host_id, v.into()))?;
+                }
+                Err(_) => {
+                    // Stream closed, just break
+                    return Ok(());
+                }
+            }
         }
+        eprintln!("ending!");
         Ok(())
     }))
 }
@@ -399,6 +410,13 @@ fn main() -> Result<()> {
                     Update::Result(duration) => app.update(host_id, Some(duration)),
                     Update::Timeout => app.update(host_id, None),
                     Update::Unknown => (),
+                    Update::Terminated(e) if e.success() => {
+                        break;
+                    }
+                    Update::Terminated(e) => {
+                        eprintln!("There was an error running ping: {}", e);
+                        break;
+                    }
                 };
                 terminal.draw(|f| {
                     // Split our
@@ -480,15 +498,17 @@ fn main() -> Result<()> {
             },
         }
     }
-
-    for thread in threads {
-        thread.join().unwrap()?;
-    }
+    killed.store(true, Ordering::Relaxed);
 
     disable_raw_mode()?;
     execute!(terminal.backend_mut(),)?;
     terminal.show_cursor()?;
+
     let new_size = terminal.size()?;
     terminal.set_cursor(new_size.width, new_size.height)?;
+    for thread in threads {
+        thread.join().unwrap()?;
+    }
+
     Ok(())
 }
