@@ -73,8 +73,12 @@ impl PlotData {
         // count timeouts
         let to = self.data.iter().filter(|(_, x)| x.is_nan()).count();
 
+        let last = self.data.last().unwrap_or(&(0f64, 0f64)).1;
+
         vec![
             ping_header,
+            Paragraph::new(format!("last {:?}", Duration::from_micros(last as u64)))
+                .style(self.style),
             Paragraph::new(format!("min {:?}", Duration::from_micros(min as u64)))
                 .style(self.style),
             Paragraph::new(format!("max {:?}", Duration::from_micros(max as u64)))
