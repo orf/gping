@@ -6,13 +6,13 @@ use crate::linux::{detect_linux_ping, LinuxPingType};
 /// ```no_run
 /// use pinger::{ping, PingResult};
 ///
-/// let stream = ping("tomforb.es".to_string()).expect("Error pinging");
+/// let stream = ping("tomforb.es".to_string(), None).expect("Error pinging");
 /// for message in stream {
 ///     match message {
 ///         PingResult::Pong(duration, line) => println!("{:?} (line: {})", duration, line),
 ///         PingResult::Timeout(_) => println!("Timeout!"),
 ///         PingResult::Unknown(line) => println!("Unknown line: {}", line),
-///         PingResult::PingExited(_) => {},
+///         PingResult::PingExited(_code, _stderr) => {},
 ///     }
 /// }
 /// ```
