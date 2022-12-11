@@ -286,7 +286,6 @@ fn start_ping_thread(
                 }
             }
         }
-        eprintln!("ending!");
         Ok(())
     }))
 }
