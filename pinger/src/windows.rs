@@ -15,6 +15,7 @@ lazy_static! {
 #[derive(Default)]
 pub struct WindowsPinger {
     interval: Duration,
+    interface: Option<String>,
 }
 
 impl Pinger for WindowsPinger {
@@ -69,6 +70,10 @@ impl Pinger for WindowsPinger {
 
     fn set_interval(&mut self, interval: Duration) {
         self.interval = interval;
+    }
+
+    fn set_interface(&mut self, interface: Option<String>) {
+        self.interface = interface;
     }
 }
 

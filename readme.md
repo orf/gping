@@ -58,37 +58,36 @@ shorthands like `aws:eu-west-1` or `aws:ca-central-1` to ping specific cloud reg
 
 ```bash
 $ gping --help
-gping 1.4.0
 Ping, but with a graph.
 
-USAGE:
-    gping [FLAGS] [OPTIONS] [--] [hosts-or-commands]...
+Usage: gping [OPTIONS] --interface <INTERFACE> [HOSTS_OR_COMMANDS]...
 
-FLAGS:
-        --cmd                Graph the execution time for a list of commands rather than pinging hosts
-    -h, --help               Prints help information
-    -4                       Resolve ping targets to IPv4 address
-    -6                       Resolve ping targets to IPv6 address
-    -s, --simple-graphics    Uses dot characters instead of braille
-    -V, --version            Prints version information
+Arguments:
+  [HOSTS_OR_COMMANDS]...  Hosts or IPs to ping, or commands to run if --cmd is provided. Can use cloud shorthands like aws:eu-west-1.
 
-OPTIONS:
-    -b, --buffer <buffer>
-            Determines the number of seconds to display in the graph. [default: 30]
-
-    -c, --color <color>...
-            Assign color to a graph entry. This option can be defined more than once and the order which the colors are
-            provided will be matched against the hosts or commands passed to gping. Hexadecimal RGB color codes are
-            accepted in the form of '#RRGGBB' or the following color names: 'black', 'red', 'green', 'yellow', 'blue',
-            'magenta', 'cyan', 'gray', 'dark-gray', 'light-red', 'light-green', 'light-yellow', 'light-blue', 'light-
-            magenta', 'light-cyan', and 'white'
-        --horizontal-margin <horizontal-margin>    Horizontal margin around the graph (left and right) [default: 0]
-        --vertical-margin <vertical-margin>        Vertical margin around the graph (top and bottom) [default: 1]
-    -n, --watch-interval <watch-interval>
-            Watch interval seconds (provide partial seconds like '0.5'). Default for ping is 0.2, default for cmd is
-            0.5.
-
-ARGS:
-    <hosts-or-commands>...    Hosts or IPs to ping, or commands to run if --cmd is provided. Can use cloud
-                              shorthands like aws:eu-west-1.
+Options:
+      --cmd
+          Graph the execution time for a list of commands rather than pinging hosts
+  -n, --watch-interval <WATCH_INTERVAL>
+          Watch interval seconds (provide partial seconds like '0.5'). Default for ping is 0.2, default for cmd is 0.5.
+  -b, --buffer <BUFFER>
+          Determines the number of seconds to display in the graph. [default: 30]
+  -4
+          Resolve ping targets to IPv4 address
+  -6
+          Resolve ping targets to IPv6 address
+  -i, --interface <INTERFACE>
+          Interface to use when pinging
+  -s, --simple-graphics
+          Uses dot characters instead of braille
+      --vertical-margin <VERTICAL_MARGIN>
+          Vertical margin around the graph (top and bottom) [default: 1]
+      --horizontal-margin <HORIZONTAL_MARGIN>
+          Horizontal margin around the graph (left and right) [default: 0]
+  -c, --color <color>
+          Assign color to a graph entry. This option can be defined more than once and the order which the colors are provided will be matched against the hosts or commands passed to gping. Hexadecimal RGB color codes are accepted in the form of '#RRGGBB' or the following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'gray', 'dark-gray', 'light-red', 'light-green', 'light-yellow', 'light-blue', 'light-magenta', 'light-cyan', and 'white'
+  -h, --help
+          Print help information
+  -V, --version
+          Print version information
 ```

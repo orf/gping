@@ -9,6 +9,7 @@ lazy_static! {
 #[derive(Default)]
 pub struct BSDPinger {
     interval: Duration,
+    interface: Option<String>,
 }
 
 impl Pinger for BSDPinger {
@@ -16,11 +17,21 @@ impl Pinger for BSDPinger {
         self.interval = interval;
     }
 
+    fn set_interface(&mut self, interface: Option<String>) {
+        self.interface = interface;
+    }
+
     fn ping_args(&self, target: String) -> Vec<String> {
-        vec![
-            format!("-i{:.1}", self.interval.as_millis() as f32 / 1_000_f32),
-            target,
-        ]
+        let mut args = vec![format!(
+            "-i{:.1}",
+            self.interval.as_millis() as f32 / 1_000_f32
+        )];
+        if let Some(interface) = &self.interface {
+            args.push("-I".into());
+            args.push(interface.clone());
+        }
+        args.push(target);
+        args
     }
 }
 

@@ -80,6 +80,9 @@ struct Args {
     /// Resolve ping targets to IPv6 address
     #[arg(short = '6', conflicts_with = "ipv4")]
     ipv6: bool,
+    /// Interface to use when pinging.
+    #[arg(short = 'i', long)]
+    interface: Option<String>,
     #[arg(short = 's', long, help = "Uses dot characters instead of braille")]
     simple_graphics: bool,
     #[arg(
@@ -202,7 +205,7 @@ enum Update {
     Result(Duration),
     Timeout,
     Unknown,
-    Terminated(ExitStatus),
+    Terminated(ExitStatus, String),
 }
 
 impl From<PingResult> for Update {
@@ -211,7 +214,7 @@ impl From<PingResult> for Update {
             PingResult::Pong(duration, _) => Update::Result(duration),
             PingResult::Timeout(_) => Update::Timeout,
             PingResult::Unknown(_) => Update::Unknown,
-            PingResult::PingExited(e) => Update::Terminated(e),
+            PingResult::PingExited(e, stderr) => Update::Terminated(e, stderr),
         }
     }
 }
@@ -270,10 +273,11 @@ fn start_ping_thread(
     watch_interval: Option<f32>,
     ping_tx: Sender<Event>,
     kill_event: Arc<AtomicBool>,
+    interface: Option<String>,
 ) -> Result<JoinHandle<Result<()>>> {
     let interval = Duration::from_millis((watch_interval.unwrap_or(0.2) * 1000.0) as u64);
     // Pump ping messages into the queue
-    let stream = ping_with_interval(host, interval)?;
+    let stream = ping_with_interval(host, interval, interface)?;
     Ok(thread::spawn(move || -> Result<()> {
         while !kill_event.load(Ordering::Acquire) {
             match stream.recv() {
@@ -374,6 +378,7 @@ fn main() -> Result<()> {
                 args.watch_interval,
                 key_tx.clone(),
                 std::sync::Arc::clone(&killed),
+                args.interface.clone(),
             )?);
         }
     }
@@ -409,11 +414,14 @@ fn main() -> Result<()> {
                     Update::Result(duration) => app.update(host_id, Some(duration)),
                     Update::Timeout => app.update(host_id, None),
                     Update::Unknown => (),
-                    Update::Terminated(e) if e.success() => {
+                    Update::Terminated(e, _) if e.success() => {
                         break;
                     }
-                    Update::Terminated(e) => {
-                        eprintln!("There was an error running ping: {}", e);
+                    Update::Terminated(e, stderr) => {
+                        eprintln!(
+                            "There was an error running ping: {}\nStderr: {}\n",
+                            e, stderr
+                        );
                         break;
                     }
                 };
@@ -501,7 +509,7 @@ fn main() -> Result<()> {
     killed.store(true, Ordering::Relaxed);
 
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(),)?;
+    execute!(terminal.backend_mut())?;
     terminal.show_cursor()?;
 
     let new_size = terminal.size()?;

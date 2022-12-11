@@ -39,15 +39,11 @@ mod bsd;
 #[cfg(test)]
 mod test;
 
-pub fn run_ping(args: Vec<String>, capture_stdout: bool) -> Result<Child> {
+pub fn run_ping(args: Vec<String>) -> Result<Child> {
     Command::new("ping")
         .args(&args)
         .stdout(Stdio::piped())
-        .stderr(if capture_stdout {
-            Stdio::piped()
-        } else {
-            Stdio::null()
-        })
+        .stderr(Stdio::piped())
         // Required to ensure that the output is formatted in the way we expect, not
         // using locale specific delimiters.
         .env("LANG", "C")
@@ -63,7 +59,7 @@ pub trait Pinger: Default {
     {
         let (tx, rx) = mpsc::channel();
         let args = self.ping_args(target);
-        let mut child = run_ping(args, false)?;
+        let mut child = run_ping(args)?;
         let stdout = child.stdout.take().context("child did not have a stdout")?;
 
         thread::spawn(move || {
@@ -81,8 +77,9 @@ pub trait Pinger: Default {
                     Err(_) => break,
                 }
             }
-            let result = child.wait().expect("Child wasn't started?");
-            tx.send(PingResult::PingExited(result))
+            let result = child.wait_with_output().expect("Child wasn't started?");
+            let decoded_stderr = String::from_utf8(result.stderr).expect("Error decoding stderr");
+            tx.send(PingResult::PingExited(result.status, decoded_stderr))
                 .expect("Error sending ping result");
         });
 
@@ -90,6 +87,8 @@ pub trait Pinger: Default {
     }
 
     fn set_interval(&mut self, interval: Duration);
+
+    fn set_interface(&mut self, interface: Option<String>);
 
     fn ping_args(&self, target: String) -> Vec<String> {
         vec![target]
@@ -102,6 +101,8 @@ pub struct SimplePinger {}
 
 impl Pinger for SimplePinger {
     fn set_interval(&mut self, _interval: Duration) {}
+
+    fn set_interface(&mut self, _interface: Option<String>) {}
 }
 
 pub trait Parser: Default {
@@ -125,7 +126,7 @@ pub enum PingResult {
     Pong(Duration, String),
     Timeout(String),
     Unknown(String),
-    PingExited(ExitStatus),
+    PingExited(ExitStatus, String),
 }
 
 impl fmt::Display for PingResult {
@@ -134,7 +135,7 @@ impl fmt::Display for PingResult {
             PingResult::Pong(duration, _) => write!(f, "{:?}", duration),
             PingResult::Timeout(_) => write!(f, "Timeout"),
             PingResult::Unknown(_) => write!(f, "Unknown"),
-            PingResult::PingExited(status) => write!(f, "Exited({})", status),
+            PingResult::PingExited(status, stderr) => write!(f, "Exited({}, {})", status, stderr),
         }
     }
 }
@@ -162,16 +163,21 @@ pub enum PingError {
 }
 
 /// Start pinging a an address. The address can be either a hostname or an IP address.
-pub fn ping(addr: String) -> Result<mpsc::Receiver<PingResult>> {
-    ping_with_interval(addr, Duration::from_millis(200))
+pub fn ping(addr: String, interface: Option<String>) -> Result<mpsc::Receiver<PingResult>> {
+    ping_with_interval(addr, Duration::from_millis(200), interface)
 }
 
 /// Start pinging a an address. The address can be either a hostname or an IP address.
-pub fn ping_with_interval(addr: String, interval: Duration) -> Result<mpsc::Receiver<PingResult>> {
+pub fn ping_with_interval(
+    addr: String,
+    interval: Duration,
+    interface: Option<String>,
+) -> Result<mpsc::Receiver<PingResult>> {
     #[cfg(windows)]
     {
         let mut p = windows::WindowsPinger::default();
         p.set_interval(interval);
+        p.set_interface(interface);
         return p.start::<windows::WindowsParser>(addr);
     }
     #[cfg(unix)]
@@ -183,21 +189,25 @@ pub fn ping_with_interval(addr: String, interval: Duration) -> Result<mpsc::Rece
         {
             let mut p = bsd::BSDPinger::default();
             p.set_interval(interval);
+            p.set_interface(interface);
             p.start::<bsd::BSDParser>(addr)
         } else if cfg!(target_os = "macos") {
             let mut p = macos::MacOSPinger::default();
             p.set_interval(interval);
+            p.set_interface(interface);
             p.start::<macos::MacOSParser>(addr)
         } else {
             match detect_linux_ping() {
                 Ok(LinuxPingType::IPTools) => {
                     let mut p = linux::LinuxPinger::default();
                     p.set_interval(interval);
+                    p.set_interface(interface);
                     p.start::<linux::LinuxParser>(addr)
                 }
                 Ok(LinuxPingType::BusyBox) => {
                     let mut p = linux::AlpinePinger::default();
                     p.set_interval(interval);
+                    p.set_interface(interface);
                     p.start::<linux::LinuxParser>(addr)
                 }
                 Err(e) => Err(PingError::UnsupportedPing(e))?,

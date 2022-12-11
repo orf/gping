@@ -10,8 +10,7 @@ pub enum LinuxPingType {
 }
 
 pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {
-    // Err(PingDetectionError::Thing)
-    let child = run_ping(vec!["-V".to_string()], true)?;
+    let child = run_ping(vec!["-V".to_string()])?;
     let output = child
         .wait_with_output()
         .context("Error getting ping stdout/stderr")?;
@@ -41,6 +40,7 @@ pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {
 #[derive(Default)]
 pub struct LinuxPinger {
     interval: Duration,
+    interface: Option<String>,
 }
 
 impl Pinger for LinuxPinger {
@@ -48,26 +48,40 @@ impl Pinger for LinuxPinger {
         self.interval = interval;
     }
 
+    fn set_interface(&mut self, interface: Option<String>) {
+        self.interface = interface;
+    }
+
     fn ping_args(&self, target: String) -> Vec<String> {
         // The -O flag ensures we "no answer yet" messages from ping
         // See https://superuser.com/questions/270083/linux-ping-show-time-out
-        vec![
+        let mut args = vec![
             "-O".to_string(),
             format!("-i{:.1}", self.interval.as_millis() as f32 / 1_000_f32),
-            target,
-        ]
+        ];
+        if let Some(interface) = &self.interface {
+            args.push("-I".into());
+            args.push(interface.clone());
+        }
+        args.push(target);
+        args
     }
 }
 
 #[derive(Default)]
 pub struct AlpinePinger {
     interval: Duration,
+    interface: Option<String>,
 }
 
 // Alpine doesn't support timeout notifications, so we don't add the -O flag here
 impl Pinger for AlpinePinger {
     fn set_interval(&mut self, interval: Duration) {
         self.interval = interval;
+    }
+
+    fn set_interface(&mut self, interface: Option<String>) {
+        self.interface = interface;
     }
 }
 
