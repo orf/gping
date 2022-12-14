@@ -79,8 +79,7 @@ pub trait Pinger: Default {
             }
             let result = child.wait_with_output().expect("Child wasn't started?");
             let decoded_stderr = String::from_utf8(result.stderr).expect("Error decoding stderr");
-            tx.send(PingResult::PingExited(result.status, decoded_stderr))
-                .expect("Error sending ping result");
+            let _ = tx.send(PingResult::PingExited(result.status, decoded_stderr));
         });
 
         Ok(rx)
