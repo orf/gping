@@ -17,10 +17,10 @@ anyhow = "1.0.66"
 dns-lookup = "1.0.8"
 chrono = "0.4.23"
 itertools = "0.10.5"
-shadow-rs = "0.18.0"
+shadow-rs = "0.19.0"
 const_format = "0.2.30"
 read_color = "1.0.0"
 clap = { version = "4.0.29", features = ["derive"] }
 
 [build-dependencies]
-shadow-rs = "0.18.0"
+shadow-rs = "0.19.0"
