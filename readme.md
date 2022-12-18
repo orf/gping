@@ -60,7 +60,7 @@ shorthands like `aws:eu-west-1` or `aws:ca-central-1` to ping specific cloud reg
 $ gping --help
 Ping, but with a graph.
 
-Usage: gping [OPTIONS] --interface <INTERFACE> [HOSTS_OR_COMMANDS]...
+Usage: gping [OPTIONS] [HOSTS_OR_COMMANDS]...
 
 Arguments:
   [HOSTS_OR_COMMANDS]...  Hosts or IPs to ping, or commands to run if --cmd is provided. Can use cloud shorthands like aws:eu-west-1.
@@ -85,7 +85,7 @@ Options:
       --horizontal-margin <HORIZONTAL_MARGIN>
           Horizontal margin around the graph (left and right) [default: 0]
   -c, --color <color>
-          Assign color to a graph entry. This option can be defined more than once and the order which the colors are provided will be matched against the hosts or commands passed to gping. Hexadecimal RGB color codes are accepted in the form of '#RRGGBB' or the following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'gray', 'dark-gray', 'light-red', 'light-green', 'light-yellow', 'light-blue', 'light-magenta', 'light-cyan', and 'white'
+          Assign color to a graph entry. This option can be defined more than once as a comma separated string, and the order which the colors are provided will be matched against the hosts or commands passed to gping. Hexadecimal RGB color codes are accepted in the form of '#RRGGBB' or the following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta','cyan', 'gray', 'dark-gray', 'light-red', 'light-green', 'light-yellow', 'light-blue', 'light-magenta', 'light-cyan', and 'white'
   -h, --help
           Print help information
   -V, --version
