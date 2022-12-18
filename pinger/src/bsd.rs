@@ -3,7 +3,7 @@ use regex::Regex;
 use std::time::Duration;
 
 lazy_static! {
-    static ref RE: Regex = Regex::new(r"time=(?:(?P<time>[0-9\.]+)\s+ms)").unwrap();
+    static ref RE: Regex = Regex::new(r"time=(?:(?P<ms>[0-9]+).(?P<ns>[0-9]+)\s+ms)").unwrap();
 }
 
 #[derive(Default)]

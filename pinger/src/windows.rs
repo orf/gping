@@ -9,7 +9,7 @@ use std::time::Duration;
 use winping::{Buffer, Pinger as WinPinger};
 
 lazy_static! {
-    static ref RE: Regex = Regex::new(r"(?ix-u)time=(?P<time>\d+(?:\.\d+)?)ms").unwrap();
+    static ref RE: Regex = Regex::new(r"(?ix-u)time=(?P<ms>\d+)(?:\.(?P<ns>\d+))?").unwrap();
 }
 
 #[derive(Default)]

@@ -86,7 +86,8 @@ impl Pinger for AlpinePinger {
 }
 
 lazy_static! {
-    static ref UBUNTU_RE: Regex = Regex::new(r"(?i-u)time=(?P<time>\d+(?:\.\d+)?) *ms").unwrap();
+    static ref UBUNTU_RE: Regex =
+        Regex::new(r"(?i-u)time=(?P<ms>\d+)(?:\.(?P<ns>\d+))? *ms").unwrap();
 }
 
 #[derive(Default)]

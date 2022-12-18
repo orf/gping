@@ -12,7 +12,7 @@ use crate::linux::{detect_linux_ping, LinuxPingType};
 ///         PingResult::Pong(duration, line) => println!("{:?} (line: {})", duration, line),
 ///         PingResult::Timeout(_) => println!("Timeout!"),
 ///         PingResult::Unknown(line) => println!("Unknown line: {}", line),
-///         PingResult::PingExited(_code, _stderr) => {},
+///         PingResult::PingExited(_code, _stderr) => {}
 ///     }
 /// }
 /// ```
@@ -109,13 +109,22 @@ pub trait Parser: Default {
 
     fn extract_regex(&self, regex: &Regex, line: String) -> Option<PingResult> {
         let cap = regex.captures(&line)?;
-        let time = cap
-            .name("time")
-            .expect("No capture group named 'time'")
+        let ms = cap
+            .name("ms")
+            .expect("No capture group named 'ms'")
             .as_str()
-            .parse::<f32>()
-            .expect("time cannot be parsed as f32");
-        let duration = Duration::from_micros((time * 1000f32) as u64);
+            .parse::<u64>()
+            .ok()?;
+        let ns = match cap.name("ns") {
+            None => 0,
+            Some(cap) => {
+                let matched_str = cap.as_str();
+                let number_of_digits = matched_str.len() as u32;
+                let fractional_ms = matched_str.parse::<u64>().ok()?;
+                fractional_ms * (10u64.pow(6 - number_of_digits))
+            }
+        };
+        let duration = Duration::from_millis(ms) + Duration::from_nanos(ns);
         Some(PingResult::Pong(duration, line))
     }
 }
