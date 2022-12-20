@@ -101,6 +101,8 @@ struct Args {
         name = "color",
         short = 'c',
         long = "color",
+        use_value_delimiter = true,
+        value_delimiter = ',',
         help = "\
             Assign color to a graph entry. This option can be defined more than \
             once as a comma separated string, and the order which the colors are \
