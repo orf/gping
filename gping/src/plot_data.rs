@@ -89,7 +89,7 @@ impl PlotData {
                 .style(self.style),
             Paragraph::new(format!("p95 {:?}", Duration::from_micros(p95 as u64)))
                 .style(self.style),
-            Paragraph::new(format!("t/o {:?}", to)).style(self.style),
+            Paragraph::new(format!("t/o {to:?}")).style(self.style),
         ]
     }
 }

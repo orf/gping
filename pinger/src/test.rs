@@ -14,8 +14,8 @@ mod tests {
     {
         let parser = T::default();
         let test_file: Vec<&str> = contents.split("-----").collect();
-        let input = test_file[0].trim().split("\n");
-        let expected: Vec<&str> = test_file[1].trim().split("\n").collect();
+        let input = test_file[0].trim().split('\n');
+        let expected: Vec<&str> = test_file[1].trim().split('\n').collect();
         let parsed: Vec<Option<PingResult>> = input.map(|l| parser.parse(l.to_string())).collect();
 
         assert_eq!(
@@ -29,13 +29,12 @@ mod tests {
         for (idx, (output, expected)) in parsed.into_iter().zip(expected).enumerate() {
             if let Some(value) = output {
                 assert_eq!(
-                    format!("{}", value).trim(),
+                    format!("{value}").trim(),
                     expected.trim(),
-                    "Failed at idx {}",
-                    idx
+                    "Failed at idx {idx}"
                 )
             } else {
-                assert_eq!("None", expected.trim(), "Failed at idx {}", idx)
+                assert_eq!("None", expected.trim(), "Failed at idx {idx}")
             }
         }
     }

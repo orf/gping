@@ -140,10 +140,10 @@ pub enum PingResult {
 impl fmt::Display for PingResult {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self {
-            PingResult::Pong(duration, _) => write!(f, "{:?}", duration),
+            PingResult::Pong(duration, _) => write!(f, "{duration:?}"),
             PingResult::Timeout(_) => write!(f, "Timeout"),
             PingResult::Unknown(_) => write!(f, "Unknown"),
-            PingResult::PingExited(status, stderr) => write!(f, "Exited({}, {})", status, stderr),
+            PingResult::PingExited(status, stderr) => write!(f, "Exited({status}, {stderr})"),
         }
     }
 }

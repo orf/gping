@@ -240,7 +240,6 @@ fn start_cmd_thread(
         .expect("Must specify a command to watch")
         .to_string();
     let cmd_args = words
-        .into_iter()
         .map(|w| w.to_string())
         .collect::<Vec<String>>();
 
@@ -421,8 +420,7 @@ fn main() -> Result<()> {
                     }
                     Update::Terminated(e, stderr) => {
                         eprintln!(
-                            "There was an error running ping: {}\nStderr: {}\n",
-                            e, stderr
+                            "There was an error running ping: {e}\nStderr: {stderr}\n"
                         );
                         break;
                     }

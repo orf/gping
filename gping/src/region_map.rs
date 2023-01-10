@@ -2,7 +2,7 @@ type Host = String;
 
 pub fn try_host_from_cloud_region(query: &str) -> Option<Host> {
     match query.split_once(':') {
-        Some(("aws", region)) => Some(format!("ec2.{}.amazonaws.com", region)),
+        Some(("aws", region)) => Some(format!("ec2.{region}.amazonaws.com")),
         _ => None,
     }
 }
