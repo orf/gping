@@ -239,9 +239,7 @@ fn start_cmd_thread(
         .next()
         .expect("Must specify a command to watch")
         .to_string();
-    let cmd_args = words
-        .map(|w| w.to_string())
-        .collect::<Vec<String>>();
+    let cmd_args = words.map(|w| w.to_string()).collect::<Vec<String>>();
 
     let interval = Duration::from_millis((watch_interval.unwrap_or(0.5) * 1000.0) as u64);
 
@@ -419,9 +417,7 @@ fn main() -> Result<()> {
                         break;
                     }
                     Update::Terminated(e, stderr) => {
-                        eprintln!(
-                            "There was an error running ping: {e}\nStderr: {stderr}\n"
-                        );
+                        eprintln!("There was an error running ping: {e}\nStderr: {stderr}\n");
                         break;
                     }
                 };
