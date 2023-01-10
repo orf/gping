@@ -21,7 +21,7 @@ impl Pinger for BSDPinger {
         self.interface = interface;
     }
 
-    fn ping_args(&self, target: String) -> Vec<String> {
+    fn ping_args(&self, target: String) -> (&str, Vec<String>) {
         let mut args = vec![format!(
             "-i{:.1}",
             self.interval.as_millis() as f32 / 1_000_f32
@@ -31,7 +31,7 @@ impl Pinger for BSDPinger {
             args.push(interface.clone());
         }
         args.push(target);
-        args
+        ("ping", args)
     }
 }
 

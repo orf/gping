@@ -39,8 +39,8 @@ mod bsd;
 #[cfg(test)]
 mod test;
 
-pub fn run_ping(args: Vec<String>) -> Result<Child> {
-    Command::new("ping")
+pub fn run_ping(cmd: &str, args: Vec<String>) -> Result<Child> {
+    Command::new(cmd)
         .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -58,8 +58,8 @@ pub trait Pinger: Default {
         P: Parser,
     {
         let (tx, rx) = mpsc::channel();
-        let args = self.ping_args(target);
-        let mut child = run_ping(args)?;
+        let (cmd, args) = self.ping_args(target);
+        let mut child = run_ping(cmd, args)?;
         let stdout = child.stdout.take().context("child did not have a stdout")?;
 
         thread::spawn(move || {
@@ -89,8 +89,8 @@ pub trait Pinger: Default {
 
     fn set_interface(&mut self, interface: Option<String>);
 
-    fn ping_args(&self, target: String) -> Vec<String> {
-        vec![target]
+    fn ping_args(&self, target: String) -> (&str, Vec<String>) {
+        ("ping", vec![target])
     }
 }
 

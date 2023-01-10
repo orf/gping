@@ -1,5 +1,6 @@
 use crate::{Parser, PingResult, Pinger};
 use regex::Regex;
+use std::net::Ipv6Addr;
 use std::time::Duration;
 
 lazy_static! {
@@ -21,7 +22,11 @@ impl Pinger for MacOSPinger {
         self.interface = interface;
     }
 
-    fn ping_args(&self, target: String) -> Vec<String> {
+    fn ping_args(&self, target: String) -> (&str, Vec<String>) {
+        let cmd = match target.parse::<Ipv6Addr>() {
+            Ok(_) => "ping6",
+            Err(_) => "ping",
+        };
         let mut args = vec![
             format!("-i{:.1}", self.interval.as_millis() as f32 / 1_000_f32),
             target,
@@ -31,7 +36,7 @@ impl Pinger for MacOSPinger {
             args.push(interface.clone());
         }
 
-        args
+        (cmd, args)
     }
 }
 

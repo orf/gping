@@ -10,7 +10,7 @@ pub enum LinuxPingType {
 }
 
 pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {
-    let child = run_ping(vec!["-V".to_string()])?;
+    let child = run_ping("ping", vec!["-V".to_string()])?;
     let output = child
         .wait_with_output()
         .context("Error getting ping stdout/stderr")?;
@@ -52,7 +52,7 @@ impl Pinger for LinuxPinger {
         self.interface = interface;
     }
 
-    fn ping_args(&self, target: String) -> Vec<String> {
+    fn ping_args(&self, target: String) -> (&str, Vec<String>) {
         // The -O flag ensures we "no answer yet" messages from ping
         // See https://superuser.com/questions/270083/linux-ping-show-time-out
         let mut args = vec![
@@ -64,7 +64,7 @@ impl Pinger for LinuxPinger {
             args.push(interface.clone());
         }
         args.push(target);
-        args
+        ("ping", args)
     }
 }
 
