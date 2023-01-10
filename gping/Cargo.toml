@@ -7,7 +7,7 @@ repository = "https://github.com/orf/gping"
 license = "MIT"
 description = "Ping, but with a graph."
 build = "build.rs"
-
+readme = "../readme.md"
 
 [dependencies]
 pinger = { version = "^0.7.0", path = "../pinger" }
