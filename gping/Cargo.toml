@@ -24,3 +24,5 @@ clap = { version = "4.1.1", features = ["derive"] }
 
 [build-dependencies]
 shadow-rs = "0.20.0"
+clap = { version = "4.1.1", features = ["derive"] }
+clap_mangen = "0.2.7"
