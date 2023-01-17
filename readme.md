@@ -50,6 +50,9 @@ sudo eselect repository enable dm9pZCAq
 sudo emerge --sync dm9pZCAq
 sudo emerge net-misc/gping::dm9pZCAq
 ```
+* FreeBSD:
+  * [pkg](https://www.freshports.org/net-mgmt/gping/): `pkg install gping`
+  * [ports](https://cgit.freebsd.org/ports/tree/net-mgmt/gping) `cd /usr/ports/net-mgmt/gping; make install clean`
 
 # Usage :saxophone:
 
