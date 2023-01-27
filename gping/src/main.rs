@@ -2,7 +2,7 @@ use crate::plot_data::PlotData;
 use anyhow::{anyhow, Result};
 use chrono::prelude::*;
 use clap::Parser;
-use crossterm::event::{KeyEvent, KeyModifiers};
+use crossterm::event::KeyModifiers;
 use crossterm::{
     event::{self, Event as CEvent, KeyCode},
     execute,
@@ -11,6 +11,7 @@ use crossterm::{
 use dns_lookup::lookup_host;
 use pinger::{ping_with_interval, PingResult};
 use std::io;
+use std::io::BufWriter;
 use std::iter;
 use std::net::IpAddr;
 use std::ops::Add;
@@ -19,7 +20,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{mpsc, Arc};
 use std::thread;
-use std::thread::JoinHandle;
+use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};
 use tui::backend::{Backend, CrosstermBackend};
 use tui::layout::{Constraint, Direction, Layout};
@@ -224,7 +225,21 @@ impl From<PingResult> for Update {
 #[derive(Debug)]
 enum Event {
     Update(usize, Update),
-    Input(KeyEvent),
+    Terminate,
+    Render,
+}
+
+fn start_render_thread(
+    kill_event: Arc<AtomicBool>,
+    cmd_tx: Sender<Event>,
+) -> JoinHandle<Result<()>> {
+    thread::spawn(move || {
+        while !kill_event.load(Ordering::Acquire) {
+            sleep(Duration::from_millis(250));
+            cmd_tx.send(Event::Render)?;
+        }
+        Ok(())
+    })
 }
 
 fn start_cmd_thread(
@@ -260,7 +275,7 @@ fn start_cmd_thread(
                 Update::Timeout
             };
             cmd_tx.send(Event::Update(host_id, update))?;
-            thread::sleep(interval);
+            sleep(interval);
         }
         Ok(())
     })
@@ -358,7 +373,7 @@ fn main() -> Result<()> {
 
     let mut threads = vec![];
 
-    let killed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let killed = Arc::new(AtomicBool::new(false));
 
     for (host_id, host_or_cmd) in hosts_or_commands.iter().cloned().enumerate() {
         if args.cmd {
@@ -381,11 +396,15 @@ fn main() -> Result<()> {
             )?);
         }
     }
+    threads.push(start_render_thread(
+        std::sync::Arc::clone(&killed),
+        key_tx.clone(),
+    ));
 
     let mut app = App::new(data, args.buffer);
     enable_raw_mode()?;
     let stdout = io::stdout();
-    let mut backend = CrosstermBackend::new(stdout);
+    let mut backend = CrosstermBackend::new(BufWriter::with_capacity(1024 * 1024 * 4, stdout));
     let rect = backend.size()?;
     execute!(backend, SetSize(rect.width, rect.height),)?;
 
@@ -394,17 +413,26 @@ fn main() -> Result<()> {
 
     // Pump keyboard messages into the queue
     let killed_thread = std::sync::Arc::clone(&killed);
-    let key_thread = thread::spawn(move || -> Result<()> {
+    thread::spawn(move || -> Result<()> {
         while !killed_thread.load(Ordering::Acquire) {
-            if event::poll(Duration::from_millis(100))? {
+            if event::poll(Duration::from_secs(5))? {
                 if let CEvent::Key(key) = event::read()? {
-                    key_tx.send(Event::Input(key))?;
+                    match key.code {
+                        KeyCode::Char('q') | KeyCode::Esc => {
+                            key_tx.send(Event::Terminate)?;
+                            break;
+                        }
+                        KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => {
+                            key_tx.send(Event::Terminate)?;
+                            break;
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
         Ok(())
     });
-    threads.push(key_thread);
 
     loop {
         match rx.recv()? {
@@ -421,8 +449,9 @@ fn main() -> Result<()> {
                         break;
                     }
                 };
+            }
+            Event::Render => {
                 terminal.draw(|f| {
-                    // Split our
                     let chunks = Layout::default()
                         .direction(Direction::Vertical)
                         .vertical_margin(args.vertical_margin)
@@ -438,8 +467,8 @@ fn main() -> Result<()> {
 
                     let total_chunks = chunks.len();
 
-                    let header_chunks = chunks[0..total_chunks - 1].to_owned();
-                    let chart_chunk = chunks[total_chunks - 1].to_owned();
+                    let header_chunks = &chunks[0..total_chunks - 1];
+                    let chart_chunk = &chunks[total_chunks - 1];
 
                     for (plot_data, chunk) in app.data.iter().zip(header_chunks) {
                         let header_layout = Layout::default()
@@ -457,7 +486,7 @@ fn main() -> Result<()> {
                                 ]
                                 .as_ref(),
                             )
-                            .split(chunk);
+                            .split(*chunk);
 
                         for (area, paragraph) in
                             header_layout.into_iter().zip(plot_data.header_stats())
@@ -486,20 +515,13 @@ fn main() -> Result<()> {
                                 .labels(app.y_axis_labels(y_axis_bounds)),
                         );
 
-                    f.render_widget(chart, chart_chunk)
+                    f.render_widget(chart, *chart_chunk)
                 })?;
             }
-            Event::Input(input) => match input.code {
-                KeyCode::Char('q') | KeyCode::Esc => {
-                    killed.store(true, Ordering::Release);
-                    break;
-                }
-                KeyCode::Char('c') if input.modifiers == KeyModifiers::CONTROL => {
-                    killed.store(true, Ordering::Release);
-                    break;
-                }
-                _ => {}
-            },
+            Event::Terminate => {
+                killed.store(true, Ordering::Release);
+                break;
+            }
         }
     }
     killed.store(true, Ordering::Relaxed);
