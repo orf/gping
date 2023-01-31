@@ -18,4 +18,4 @@ winping = "0.10.1"
 dns-lookup = "1.0.8"
 
 [dev-dependencies]
-os_info = "3.5.1"
+os_info = "3.6.0"
