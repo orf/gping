@@ -20,7 +20,7 @@ itertools = "0.10.5"
 shadow-rs = "0.20.1"
 const_format = "0.2.30"
 read_color = "1.0.0"
-clap = { version = "4.1.6", features = ["derive"] }
+clap = { version = "4.1.8", features = ["derive"] }
 
 [build-dependencies]
 shadow-rs = "0.20.1"
