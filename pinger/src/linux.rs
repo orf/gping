@@ -57,7 +57,8 @@ impl Pinger for LinuxPinger {
         // See https://superuser.com/questions/270083/linux-ping-show-time-out
         let mut args = vec![
             "-O".to_string(),
-            format!("-i{:.1}", self.interval.as_millis() as f32 / 1_000_f32),
+            "-c".to_string(),
+            "1".to_string(),
         ];
         if let Some(interface) = &self.interface {
             args.push("-I".into());

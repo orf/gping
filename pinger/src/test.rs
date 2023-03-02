@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::bsd::BSDParser;
     use crate::linux::LinuxParser;
-    use crate::macos::MacOSParser;
     use crate::{Parser, PingResult};
 
     #[cfg(windows)]
@@ -37,31 +35,6 @@ mod tests {
                 assert_eq!("None", expected.trim(), "Failed at idx {idx}")
             }
         }
-    }
-
-    #[test]
-    fn macos() {
-        test_parser::<MacOSParser>(include_str!("tests/macos.txt"));
-    }
-
-    #[test]
-    fn freebsd() {
-        test_parser::<BSDParser>(include_str!("tests/bsd.txt"));
-    }
-
-    #[test]
-    fn dragonfly() {
-        test_parser::<BSDParser>(include_str!("tests/bsd.txt"));
-    }
-
-    #[test]
-    fn openbsd() {
-        test_parser::<BSDParser>(include_str!("tests/bsd.txt"));
-    }
-
-    #[test]
-    fn netbsd() {
-        test_parser::<BSDParser>(include_str!("tests/bsd.txt"));
     }
 
     #[test]

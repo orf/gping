@@ -30,12 +30,11 @@ use thiserror::Error;
 extern crate lazy_static;
 
 pub mod linux;
-// pub mod alpine'
-pub mod macos;
+
 #[cfg(windows)]
 pub mod windows;
 
-mod bsd;
+
 #[cfg(test)]
 mod test;
 
@@ -190,36 +189,48 @@ pub fn ping_with_interval(
     }
     #[cfg(unix)]
     {
-        if cfg!(target_os = "freebsd")
-            || cfg!(target_os = "dragonfly")
-            || cfg!(target_os = "openbsd")
-            || cfg!(target_os = "netbsd")
-        {
-            let mut p = bsd::BSDPinger::default();
-            p.set_interval(interval);
-            p.set_interface(interface);
-            p.start::<bsd::BSDParser>(addr)
-        } else if cfg!(target_os = "macos") {
-            let mut p = macos::MacOSPinger::default();
-            p.set_interval(interval);
-            p.set_interface(interface);
-            p.start::<macos::MacOSParser>(addr)
-        } else {
-            match detect_linux_ping() {
-                Ok(LinuxPingType::IPTools) => {
-                    let mut p = linux::LinuxPinger::default();
-                    p.set_interval(interval);
-                    p.set_interface(interface);
-                    p.start::<linux::LinuxParser>(addr)
-                }
-                Ok(LinuxPingType::BusyBox) => {
-                    let mut p = linux::AlpinePinger::default();
-                    p.set_interval(interval);
-                    p.set_interface(interface);
-                    p.start::<linux::LinuxParser>(addr)
-                }
-                Err(e) => Err(PingError::UnsupportedPing(e))?,
+        match detect_linux_ping() {
+            Ok(LinuxPingType::IPTools) => {
+                let mut p = linux::LinuxPinger::default();
+                p.set_interval(interval);
+                p.set_interface(interface);
+                p.start::<linux::LinuxParser>(addr)
             }
+            Ok(LinuxPingType::BusyBox) => {
+                let mut p = linux::AlpinePinger::default();
+                p.set_interval(interval);
+                p.set_interface(interface);
+                p.start::<linux::LinuxParser>(addr)
+            }
+            Err(e) => Err(PingError::UnsupportedPing(e))?,
+        }
+    }
+
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::mpsc::TryRecvError;
+    use std::thread::sleep;
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test() {
+        use super::*;
+        let ping_channel = ping_with_interval(
+            "8.8.8.8".to_string(),
+            Duration::from_millis(200),
+            None,
+        ).unwrap();
+        loop {
+            println!("hi");
+            match ping_channel.try_recv() {
+                Ok(hi) => {
+                    println!("{:?}", hi);
+                }
+                Err(e) => {println!("{:?}", e);}
+            }
+            sleep(Duration::from_millis(200));
         }
     }
 }
