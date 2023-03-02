@@ -1,5 +1,5 @@
 #[cfg(unix)]
-use crate::linux::{detect_linux_ping, LinuxPingType};
+use crate::linux::{detect_linux_ping};
 /// Pinger
 /// This crate exposes a simple function to ping remote hosts across different operating systems.
 /// Example:
@@ -19,8 +19,7 @@ use crate::linux::{detect_linux_ping, LinuxPingType};
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::fmt::Formatter;
-use std::io::{BufRead, BufReader};
-use std::process::{Child, Command, ExitStatus, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio, Output};
 use std::sync::mpsc;
 use std::time::Duration;
 use std::{fmt, thread};
@@ -38,69 +37,29 @@ pub mod windows;
 #[cfg(test)]
 mod test;
 
-pub fn run_ping(cmd: &str, args: Vec<String>) -> Result<Child> {
+pub fn run_ping(cmd: &str, args: Vec<String>) -> Result<Output> {
     Command::new(cmd)
         .args(&args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
         // Required to ensure that the output is formatted in the way we expect, not
         // using locale specific delimiters.
         .env("LANG", "C")
         .env("LC_ALL", "C")
-        .spawn()
-        .with_context(|| format!("Failed to run ping with args {:?}", &args))
+        .output()
+        .context(|| format!("Failed to run ping with args {:?}", &args))
 }
 
 pub trait Pinger: Default {
-    fn start<P>(&self, target: String) -> Result<mpsc::Receiver<PingResult>>
-    where
-        P: Parser,
-    {
-        let (tx, rx) = mpsc::channel();
-        let (cmd, args) = self.ping_args(target);
-        let mut child = run_ping(cmd, args)?;
-        let stdout = child.stdout.take().context("child did not have a stdout")?;
+    fn start<P: Parser>(&self, target: String) -> Result<mpsc::Receiver<PingResult>>;
 
-        thread::spawn(move || {
-            let parser = P::default();
-            let reader = BufReader::new(stdout).lines();
-            for line in reader {
-                match line {
-                    Ok(msg) => {
-                        if let Some(result) = parser.parse(msg) {
-                            if tx.send(result).is_err() {
-                                break;
-                            }
-                        }
-                    }
-                    Err(_) => break,
-                }
-            }
-            let result = child.wait_with_output().expect("Child wasn't started?");
-            let decoded_stderr = String::from_utf8(result.stderr).expect("Error decoding stderr");
-            let _ = tx.send(PingResult::PingExited(result.status, decoded_stderr));
-        });
-
-        Ok(rx)
-    }
 
     fn set_interval(&mut self, interval: Duration);
+    fn get_interval(&mut self);
 
     fn set_interface(&mut self, interface: Option<String>);
 
     fn ping_args(&self, target: String) -> (&str, Vec<String>) {
         ("ping", vec![target])
     }
-}
-
-// Default empty implementation of a pinger.
-#[derive(Default)]
-pub struct SimplePinger {}
-
-impl Pinger for SimplePinger {
-    fn set_interval(&mut self, _interval: Duration) {}
-
-    fn set_interface(&mut self, _interface: Option<String>) {}
 }
 
 pub trait Parser: Default {
@@ -190,14 +149,8 @@ pub fn ping_with_interval(
     #[cfg(unix)]
     {
         match detect_linux_ping() {
-            Ok(LinuxPingType::IPTools) => {
+            Ok(_) => {
                 let mut p = linux::LinuxPinger::default();
-                p.set_interval(interval);
-                p.set_interface(interface);
-                p.start::<linux::LinuxParser>(addr)
-            }
-            Ok(LinuxPingType::BusyBox) => {
-                let mut p = linux::AlpinePinger::default();
                 p.set_interval(interval);
                 p.set_interface(interface);
                 p.start::<linux::LinuxParser>(addr)
