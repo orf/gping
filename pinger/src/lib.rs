@@ -45,7 +45,7 @@ pub fn run_ping(cmd: &str, args: Vec<String>) -> Result<Output> {
         .env("LANG", "C")
         .env("LC_ALL", "C")
         .output()
-        .context(|| format!("Failed to run ping with args {:?}", &args))
+        .with_context(|| format!("Failed to run ping with args {:?}", &args))
 }
 
 pub trait Pinger: Default {
@@ -57,8 +57,8 @@ pub trait Pinger: Default {
 
     fn set_interface(&mut self, interface: Option<String>);
 
-    fn ping_args(&self, target: String) -> (&str, Vec<String>) {
-        ("ping", vec![target])
+    fn ping_args(&self, target: String) -> (String, Vec<String>) {
+        ("ping".to_string(), vec![target])
     }
 }
 

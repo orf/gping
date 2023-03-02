@@ -5,10 +5,7 @@ use std::{time::Duration, io::{BufRead, BufReader}, thread, sync::mpsc, process:
 
 
 pub fn detect_linux_ping() -> Result<(), PingDetectionError> {
-    let child = run_ping("ping", vec!["-V".to_string()])?;
-    let output = child
-        .wait_with_output()
-        .context("Error getting ping stdout/stderr")?;
+    let output = run_ping("ping", vec!["-V".to_string()])?;
     let stdout = String::from_utf8(output.stdout).context("Error decoding ping stdout")?;
     let stderr = String::from_utf8(output.stderr).context("Error decoding ping stderr")?;
 
@@ -38,29 +35,33 @@ impl Pinger for LinuxPinger {
         where
             P: Parser,
     {
+
+        let args = self.ping_args(target);
+        let interval = self.interval.clone();
+
         let (tx, rx) = mpsc::channel();
-        let parser = P::default();
+        thread::spawn({
+            let (cmd, args) = args.clone();
+            move || {
+                let parser = P::default();
+                match run_ping(cmd.as_str(), args) {
+                    Ok(output) => {
+                        if output.status.success() {
+                            if let Some(result) = parser.parse(String::from_utf8(output.stdout).expect("Error decoding stdout")) {
+                                if tx.send(result).is_err() {
 
-        thread::spawn(move || {
-            let (cmd, args) = self.ping_args(target);
-            match run_ping(cmd, args) {
-                Ok(output) => {
-                    if output.status.success() {
-                        if let Some(result) = parser.parse(output.stdout) {
-                            if tx.send(result).is_err() {
-
+                                }
                             }
+                        } else {
+                            let decoded_stderr = String::from_utf8(output.stderr).expect("Error decoding stderr");
+                            let _ = tx.send(PingResult::PingExited(output.status, decoded_stderr));
                         }
-                    } else {
-                        let decoded_stderr = String::from_utf8(output.stderr).expect("Error decoding stderr");
-                        let _ = tx.send(PingResult::PingExited(output.status, decoded_stderr));
                     }
-                }
-                Err(error) => {
-                }
-            };
-            thread::sleep(self.interval);
-        });
+                    Err(error) => {
+                    }
+                };
+                thread::sleep(interval);
+        }});
 
         Ok(rx)
     }
@@ -77,7 +78,7 @@ impl Pinger for LinuxPinger {
         self.interface = interface;
     }
 
-    fn ping_args(&self, target: String) -> (&str, Vec<String>) {
+    fn ping_args(&self, target: String) -> (String, Vec<String>) {
         // The -O flag ensures we "no answer yet" messages from ping
         // See https://superuser.com/questions/270083/linux-ping-show-time-out
         let mut args = vec![
@@ -90,7 +91,7 @@ impl Pinger for LinuxPinger {
             args.push(interface.clone());
         }
         args.push(target);
-        ("ping", args)
+        ("ping".to_string(), args)
     }
 }
 
