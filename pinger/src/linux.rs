@@ -47,8 +47,10 @@ impl Pinger for LinuxPinger {
                 loop {
                     match run_ping(cmd.as_str(), args.clone()) {
                         Ok(output) => {
+                            let outy = String::from_utf8(output.stdout.clone());
                             if output.status.success() {
-                                if let Some(result) = parser.parse(String::from_utf8(output.stdout).expect("Error decoding stdout")) {
+                                if let Some(result) = parser.parse(String::from_utf8(output.stdout.clone()).expect("Error decoding stdout")) {
+                                    println!("{:?}", output.stdout.clone());
                                     if tx.send(result).is_err() {
                                         break;
                                     }
@@ -82,9 +84,10 @@ impl Pinger for LinuxPinger {
         // The -O flag ensures we "no answer yet" messages from ping
         // See https://superuser.com/questions/270083/linux-ping-show-time-out
         let mut args = vec![
-            "-O".to_string(),
             "-c".to_string(),
             "1".to_string(),
+            "-W".to_string(),
+            format!("{}", self.interval.as_millis() as f32 / 1_000_f32),
         ];
         if let Some(interface) = &self.interface {
             args.push("-I".into());
@@ -105,11 +108,12 @@ pub struct LinuxParser {}
 
 impl Parser for LinuxParser {
     fn parse(&self, line: String) -> Option<PingResult> {
+
         if line.starts_with("64 bytes from") {
             return self.extract_regex(&UBUNTU_RE, line);
-        } else if line.starts_with("no answer yet") {
+        } else {
             return Some(PingResult::Timeout(line));
         }
-        None
+
     }
 }
