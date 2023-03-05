@@ -1,7 +1,7 @@
 use crate::{run_ping, Parser, PingDetectionError, PingResult, Pinger};
 use anyhow::{Context, Result};
 use regex::Regex;
-use std::{time::Duration, io::{BufRead, BufReader}, thread, sync::mpsc, process::Output};
+use std::{time::Duration, thread, sync::mpsc};
 
 
 pub fn detect_linux_ping() -> Result<(), PingDetectionError> {
@@ -44,23 +44,26 @@ impl Pinger for LinuxPinger {
             let (cmd, args) = args.clone();
             move || {
                 let parser = P::default();
-                match run_ping(cmd.as_str(), args) {
-                    Ok(output) => {
-                        if output.status.success() {
-                            if let Some(result) = parser.parse(String::from_utf8(output.stdout).expect("Error decoding stdout")) {
-                                if tx.send(result).is_err() {
-
+                loop {
+                    match run_ping(cmd.as_str(), args.clone()) {
+                        Ok(output) => {
+                            if output.status.success() {
+                                if let Some(result) = parser.parse(String::from_utf8(output.stdout).expect("Error decoding stdout")) {
+                                    if tx.send(result).is_err() {
+                                        break;
+                                    }
                                 }
+                            } else {
+                                let decoded_stderr = String::from_utf8(output.stderr).expect("Error decoding stderr");
+                                let _ = tx.send(PingResult::PingExited(output.status, decoded_stderr));
                             }
-                        } else {
-                            let decoded_stderr = String::from_utf8(output.stderr).expect("Error decoding stderr");
-                            let _ = tx.send(PingResult::PingExited(output.status, decoded_stderr));
                         }
-                    }
-                    Err(error) => {
-                    }
-                };
-                thread::sleep(interval);
+                        Err(_) => {
+                            panic!("Ping command failed - this should not happen")
+                        }
+                    };
+                    thread::sleep(interval);
+                }
         }});
 
         Ok(rx)
@@ -70,9 +73,6 @@ impl Pinger for LinuxPinger {
         self.interval = interval;
     }
 
-    fn get_interval(&mut self) {
-        self.interval.clone();
-    }
 
     fn set_interface(&mut self, interface: Option<String>) {
         self.interface = interface;

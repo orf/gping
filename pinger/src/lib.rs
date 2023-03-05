@@ -19,10 +19,10 @@ use crate::linux::{detect_linux_ping};
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::fmt::Formatter;
-use std::process::{Child, Command, ExitStatus, Stdio, Output};
+use std::process::{Command, ExitStatus, Output};
 use std::sync::mpsc;
 use std::time::Duration;
-use std::{fmt, thread};
+use std::fmt;
 use thiserror::Error;
 
 #[macro_use]
@@ -53,7 +53,6 @@ pub trait Pinger: Default {
 
 
     fn set_interval(&mut self, interval: Duration);
-    fn get_interval(&mut self);
 
     fn set_interface(&mut self, interface: Option<String>);
 

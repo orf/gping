@@ -75,9 +75,6 @@ impl Pinger for WindowsPinger {
     fn set_interface(&mut self, interface: Option<String>) {
         self.interface = interface;
     }
-    fn get_interval(&mut self) {
-        self.interval.clone();
-    }
 }
 
 #[derive(Default)]

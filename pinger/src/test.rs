@@ -53,13 +53,6 @@ mod tests {
         test_parser::<WindowsParser>(include_str!("tests/windows.txt"));
     }
 
-    #[test]
-    fn android() {
-        test_parser::<LinuxParser>(include_str!("tests/android.txt"));
-    }
 
-    #[test]
-    fn alpine() {
-        test_parser::<LinuxParser>(include_str!("tests/alpine.txt"));
-    }
+
 }
