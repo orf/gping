@@ -10,9 +10,7 @@ use crate::linux::{detect_linux_ping};
 /// for message in stream {
 ///     match message {
 ///         PingResult::Pong(duration, line) => println!("{:?} (line: {})", duration, line),
-///         PingResult::Timeout(_) => println!("Timeout!"),
-///         PingResult::Unknown(line) => println!("Unknown line: {}", line),
-///         PingResult::PingExited(_code, _stderr) => {}
+///         PingResult::Failed(_,_) => println!("Failed!"),
 ///     }
 /// }
 /// ```
@@ -89,18 +87,14 @@ pub trait Parser: Default {
 #[derive(Debug)]
 pub enum PingResult {
     Pong(Duration, String),
-    Timeout(String),
-    Unknown(String),
-    PingExited(ExitStatus, String),
+    Failed(String, String),
 }
 
 impl fmt::Display for PingResult {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self {
             PingResult::Pong(duration, _) => write!(f, "{duration:?}"),
-            PingResult::Timeout(_) => write!(f, "Timeout"),
-            PingResult::Unknown(_) => write!(f, "Unknown"),
-            PingResult::PingExited(status, stderr) => write!(f, "Exited({status}, {stderr})"),
+            PingResult::Failed(status, stderr) => write!(f, "Exited({status}, {stderr})"),
         }
     }
 }

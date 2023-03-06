@@ -2,6 +2,7 @@ use crate::{run_ping, Parser, PingDetectionError, PingResult, Pinger};
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::{time::Duration, thread, sync::mpsc};
+use std::process::ExitStatus;
 
 
 pub fn detect_linux_ping() -> Result<(), PingDetectionError> {
@@ -57,7 +58,7 @@ impl Pinger for LinuxPinger {
                                 }
                             } else {
                                 let decoded_stderr = String::from_utf8(output.stderr).expect("Error decoding stderr");
-                                let _ = tx.send(PingResult::PingExited(output.status, decoded_stderr));
+                                let _ = tx.send(PingResult::Failed(output.status.to_string(), decoded_stderr));
                             }
                         }
                         Err(_) => {
@@ -112,7 +113,7 @@ impl Parser for LinuxParser {
         if line.starts_with("64 bytes from") {
             return self.extract_regex(&UBUNTU_RE, line);
         } else {
-            return Some(PingResult::Timeout(line));
+            return Some(PingResult::Failed("1".to_string(), format!("Failed to parse: {}", line)));
         }
 
     }
