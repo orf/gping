@@ -23,7 +23,7 @@ mod tests {
                 "Failed"
             )
         } else {
-            assert_eq!("None", expected.trim(), "Failed")
+            panic!("Could not parse input file")
         }
 
     }
