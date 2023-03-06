@@ -12,39 +12,25 @@ mod tests {
     {
         let parser = T::default();
         let test_file: Vec<&str> = contents.split("-----").collect();
-        let input = test_file[0].trim().split('\n');
-        let expected: Vec<&str> = test_file[1].trim().split('\n').collect();
-        let parsed: Vec<Option<PingResult>> = input.map(|l| parser.parse(l.to_string())).collect();
+        let input = test_file[0].trim();
+        let expected: &str = test_file[1].trim();
+        let parsed: Option<PingResult> = parser.parse(input.to_string());
 
-        assert_eq!(
-            parsed.len(),
-            expected.len(),
-            "Parsed: {:?}, Expected: {:?}",
-            &parsed,
-            &expected
-        );
-
-        for (idx, (output, expected)) in parsed.into_iter().zip(expected).enumerate() {
-            if let Some(value) = output {
-                assert_eq!(
-                    format!("{value}").trim(),
-                    expected.trim(),
-                    "Failed at idx {idx}"
-                )
-            } else {
-                assert_eq!("None", expected.trim(), "Failed at idx {idx}")
-            }
+        if let Some(value) = parsed {
+            assert_eq!(
+                format!("{value}").trim(),
+                expected.trim(),
+                "Failed"
+            )
+        } else {
+            assert_eq!("None", expected.trim(), "Failed")
         }
+
     }
 
     #[test]
-    fn ubuntu() {
-        test_parser::<LinuxParser>(include_str!("tests/ubuntu.txt"));
-    }
-
-    #[test]
-    fn debian() {
-        test_parser::<LinuxParser>(include_str!("tests/debian.txt"));
+    fn linux() {
+        test_parser::<LinuxParser>(include_str!("tests/linux.txt"));
     }
 
     #[cfg(windows)]

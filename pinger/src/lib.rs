@@ -17,7 +17,7 @@ use crate::linux::{detect_linux_ping};
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::fmt::Formatter;
-use std::process::{Command, ExitStatus, Output};
+use std::process::{Command, Output};
 use std::sync::mpsc;
 use std::time::Duration;
 use std::fmt;
@@ -156,7 +156,6 @@ pub fn ping_with_interval(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::TryRecvError;
     use std::thread::sleep;
 
     #[test]
@@ -172,7 +171,10 @@ mod tests {
             println!("hi");
             match ping_channel.try_recv() {
                 Ok(hi) => {
-                    println!("{:?}", hi);
+                    match hi {
+                        PingResult::Pong(duration,_) => println!("{:?}", duration),
+                        PingResult::Failed(exit_status, err) => println!("{} - {}", exit_status, err)
+                    }
                 }
                 Err(e) => {println!("{:?}", e);}
             }
