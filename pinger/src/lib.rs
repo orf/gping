@@ -38,13 +38,13 @@ mod test;
 
 pub fn run_ping(cmd: &str, args: Vec<String>) -> Result<Output> {
     Command::new(cmd)
-        .args(&args)
-        // Required to ensure that the output is formatted in the way we expect, not
-        // using locale specific delimiters.
-        .env("LANG", "C")
-        .env("LC_ALL", "C")
-        .output()
-        .with_context(|| format!("Failed to run ping with args {:?}", &args))
+            .args(&args)
+            // Required to ensure that the output is formatted in the way we expect, not
+            // using locale specific delimiters.
+            .env("LANG", "C")
+            .env("LC_ALL", "C")
+            .output()
+            .with_context(|| format!("Failed to run ping with args {:?}", &args))
 }
 
 pub trait Pinger: Default {
@@ -152,7 +152,6 @@ pub fn ping_with_interval(
             Err(e) => Err(PingError::UnsupportedPing(e))?,
         }
     }
-
 }
 
 #[cfg(test)]
@@ -164,20 +163,16 @@ mod tests {
     fn test() {
         use super::*;
         let ping_channel = ping_with_interval(
-            "8.8.8.8".to_string(),
+            "9.9.9.99".to_string(),
             Duration::from_millis(200),
             None,
         ).unwrap();
         loop {
-            println!("hi");
-            match ping_channel.try_recv() {
-                Ok(hi) => {
-                    match hi {
-                        PingResult::Pong(duration,_) => println!("{:?}", duration),
-                        PingResult::Failed(exit_status, err) => println!("{} - {}", exit_status, err)
-                    }
+            if let Ok(result) = ping_channel.try_recv() {
+                match result {
+                    PingResult::Pong(duration, _) => println!("{:?}", duration.as_millis()),
+                    PingResult::Failed(exit_status, err) => println!("{} - {}", exit_status, err)
                 }
-                Err(e) => {println!("{:?}", e);}
             }
             sleep(Duration::from_millis(200));
         }

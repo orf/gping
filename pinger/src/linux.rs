@@ -50,18 +50,17 @@ impl Pinger for LinuxPinger {
                             let outy = String::from_utf8(output.stdout.clone());
                             if output.status.success() {
                                 if let Some(result) = parser.parse(String::from_utf8(output.stdout.clone()).expect("Error decoding stdout")) {
-                                    println!("{:?}", output.stdout.clone());
                                     if tx.send(result).is_err() {
                                         break;
                                     }
                                 }
                             } else {
-                                let decoded_stderr = String::from_utf8(output.stderr).expect("Error decoding stderr");
+                                let decoded_stderr = String::from_utf8(output.stderr.clone()).expect("Error decoding stderr");
                                 let _ = tx.send(PingResult::Failed(output.status.to_string(), decoded_stderr));
                             }
                         }
                         Err(_) => {
-                            panic!("Ping command failed - this should not happen")
+                            panic!("Ping command failed - this should not happen, please verify the integrity of the ping command")
                         }
                     };
                     thread::sleep(interval);
