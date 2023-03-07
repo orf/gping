@@ -56,7 +56,7 @@ impl Pinger for WindowsPinger {
                     }
                     Err(_) => {
                         // Fuck it. All errors are timeouts. Why not.
-                        if tx.send(PingResult::Timeout("".to_string())).is_err() {
+                        if tx.send(PingResult::Failed(1, "".to_string())).is_err() {
                             break;
                         }
                     }
@@ -83,7 +83,7 @@ pub struct WindowsParser {}
 impl Parser for WindowsParser {
     fn parse(&self, line: String) -> Option<PingResult> {
         if line.contains("timed out") || line.contains("failure") {
-            return Some(PingResult::Timeout(line));
+            return Some(PingResult::Failed(1,line));
         }
         self.extract_regex(&RE, line)
     }

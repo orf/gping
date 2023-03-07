@@ -1,30 +1,16 @@
 use crate::{run_ping, Parser, PingDetectionError, PingResult, Pinger};
-use anyhow::Context;
+use anyhow::{Context, Result};
 use regex::Regex;
-use std::time::Duration;
+use std::{time::Duration, thread, sync::mpsc};
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum LinuxPingType {
-    BusyBox,
-    IPTools,
-}
 
-pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {
-    let child = run_ping("ping", vec!["-V".to_string()])?;
-    let output = child
-        .wait_with_output()
-        .context("Error getting ping stdout/stderr")?;
+pub fn detect_linux_ping() -> Result<(), PingDetectionError> {
+    let output = run_ping("ping", vec!["-V".to_string()])?;
     let stdout = String::from_utf8(output.stdout).context("Error decoding ping stdout")?;
     let stderr = String::from_utf8(output.stderr).context("Error decoding ping stderr")?;
 
-    if stderr.contains("BusyBox") {
-        Ok(LinuxPingType::BusyBox)
-    } else if stdout.contains("iputils") {
-        Ok(LinuxPingType::IPTools)
-    } else if stdout.contains("inetutils") {
-        Err(PingDetectionError::NotSupported {
-            alternative: "Please use iputils ping, not inetutils.".to_string(),
-        })
+   if stdout.contains("iputils") {
+        Ok(())
     } else {
         let first_two_lines_stderr: Vec<String> =
             stderr.lines().take(2).map(str::to_string).collect();
@@ -44,44 +30,70 @@ pub struct LinuxPinger {
 }
 
 impl Pinger for LinuxPinger {
+
+    fn start<P>(&self, target: String) -> Result<mpsc::Receiver<PingResult>>
+        where
+            P: Parser,
+    {
+
+        let args = self.ping_args(target);
+        let interval = self.interval.clone();
+
+        let (tx, rx) = mpsc::channel();
+        thread::spawn({
+            let (cmd, args) = args.clone();
+            move || {
+                let parser = P::default();
+                loop {
+                    match run_ping(cmd.as_str(), args.clone()) {
+                        Ok(output) => {
+                            let outy = String::from_utf8(output.stdout.clone());
+                            if output.status.success() {
+                                if let Some(result) = parser.parse(String::from_utf8(output.stdout.clone()).expect("Error decoding stdout")) {
+                                    if tx.send(result).is_err() {
+                                        break;
+                                    }
+                                }
+                            } else {
+                                let decoded_stderr = String::from_utf8(output.stderr.clone()).expect("Error decoding stderr");
+                                let _ = tx.send(PingResult::Failed(output.status.to_string(), decoded_stderr));
+                            }
+                        }
+                        Err(_) => {
+                            panic!("Ping command failed - this should not happen, please verify the integrity of the ping command")
+                        }
+                    };
+                    thread::sleep(interval);
+                }
+        }});
+
+        Ok(rx)
+    }
+
     fn set_interval(&mut self, interval: Duration) {
         self.interval = interval;
     }
+
 
     fn set_interface(&mut self, interface: Option<String>) {
         self.interface = interface;
     }
 
-    fn ping_args(&self, target: String) -> (&str, Vec<String>) {
+    fn ping_args(&self, target: String) -> (String, Vec<String>) {
         // The -O flag ensures we "no answer yet" messages from ping
         // See https://superuser.com/questions/270083/linux-ping-show-time-out
         let mut args = vec![
-            "-O".to_string(),
-            format!("-i{:.1}", self.interval.as_millis() as f32 / 1_000_f32),
+            "-c".to_string(),
+            "1".to_string(),
+            "-W".to_string(),
+            format!("{}", self.interval.as_millis() as f32 / 1_000_f32),
         ];
         if let Some(interface) = &self.interface {
             args.push("-I".into());
             args.push(interface.clone());
         }
         args.push(target);
-        ("ping", args)
-    }
-}
-
-#[derive(Default)]
-pub struct AlpinePinger {
-    interval: Duration,
-    interface: Option<String>,
-}
-
-// Alpine doesn't support timeout notifications, so we don't add the -O flag here
-impl Pinger for AlpinePinger {
-    fn set_interval(&mut self, interval: Duration) {
-        self.interval = interval;
-    }
-
-    fn set_interface(&mut self, interface: Option<String>) {
-        self.interface = interface;
+        ("ping".to_string(), args)
     }
 }
 
@@ -94,32 +106,13 @@ lazy_static! {
 pub struct LinuxParser {}
 
 impl Parser for LinuxParser {
-    fn parse(&self, line: String) -> Option<PingResult> {
-        if line.starts_with("64 bytes from") {
-            return self.extract_regex(&UBUNTU_RE, line);
-        } else if line.starts_with("no answer yet") {
-            return Some(PingResult::Timeout(line));
-        }
-        None
-    }
-}
+    fn parse(&self, lines: String) -> Option<PingResult> {
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    #[cfg(target_os = "linux")]
-    fn test_linux_detection() {
-        use super::*;
-        use os_info::Type;
-        let ping_type = detect_linux_ping().expect("Error getting ping");
-        match os_info::get().os_type() {
-            Type::Alpine => {
-                assert_eq!(ping_type, LinuxPingType::BusyBox)
+        for line in lines.lines() {
+            if line.starts_with("64 bytes from") {
+                return self.extract_regex(&UBUNTU_RE, line.to_string());
             }
-            Type::Ubuntu => {
-                assert_eq!(ping_type, LinuxPingType::IPTools)
-            }
-            _ => {}
         }
+        return Some(PingResult::Failed("1".to_string(), format!("Failed to parse: {}", lines)));
     }
 }
