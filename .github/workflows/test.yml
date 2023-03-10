@@ -33,6 +33,7 @@ jobs:
       RUST_BACKTRACE: "1"
     steps:
       - uses: actions/checkout@master
+      - uses: Swatinem/rust-cache@v2
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -98,6 +99,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - run: apk add libgcc gcc musl-dev
+      - uses: Swatinem/rust-cache@v2
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -135,6 +137,7 @@ jobs:
           - x86_64-unknown-linux-musl
     steps:
       - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
