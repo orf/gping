@@ -33,7 +33,7 @@ jobs:
       RUST_BACKTRACE: "1"
     steps:
       - uses: actions/checkout@master
-      - uses: Swatinem/rust-cache@v2
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -41,17 +41,6 @@ jobs:
           override: true
 
       # Caching:
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
@@ -99,23 +88,13 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - run: apk add libgcc gcc musl-dev
-      - uses: Swatinem/rust-cache@v2
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
-      # Caching:
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      - uses: Swatinem/rust-cache@v2
 
       - name: Run tests
         uses: actions-rs/cargo@v1
@@ -137,12 +116,12 @@ jobs:
           - x86_64-unknown-linux-musl
     steps:
       - uses: actions/checkout@v3
-      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
+      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/cargo@v1
         with:
           use-cross: true
@@ -182,14 +161,13 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - uses: Swatinem/rust-cache@v2
-
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
           components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
