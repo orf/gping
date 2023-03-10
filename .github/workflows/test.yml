@@ -172,59 +172,37 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  check:
-    name: Check
+  checks:
+    name: Checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
+
+      - uses: Swatinem/rust-cache@v2
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
-
-      - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v3
-
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          components: clippy
-
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
-
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v3
-
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          components: rustfmt
+          components: rustfmt, clippy
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
+        if: success() || failure()
         with:
           command: fmt
           args: --all -- --check
+
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        if: success() || failure()
+        with:
+          command: check
+
+      - uses: actions-rs/clippy-check@v1
+        if: success() || failure()
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features
