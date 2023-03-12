@@ -75,12 +75,11 @@ impl Pinger for LinuxPinger {
                                             }
                                         }
                                     } else {
-                                        let decoded_stderr = String::from_utf8(output.stderr.clone()).expect("Error decoding stderr");
-                                        tx.send(PingResult::Failed(output.status.to_string(), decoded_stderr)).ok();
+                                        tx.send(PingResult::Failed(output.status.to_string(), "Timeout reached".to_string())).ok();
                                     }
                                 }
-                                Err(_) => {
-                                    panic!("Ping command failed - this should not happen, please verify the integrity of the ping command")
+                                Err(e) => {
+                                    panic!("Ping command failed - this should not happen, please verify the integrity of the ping command: {}", e.to_string())
                                 }
                             };
                             time::sleep(interval).await;
