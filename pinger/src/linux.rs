@@ -1,12 +1,10 @@
 use crate::{Parser, PingDetectionError, PingResult, Pinger, PhantomPinger};
 use anyhow::{Context, Result};
 use regex::Regex;
-use std::{time::Duration, thread, sync::mpsc};
-use std::process::Output;
+use std::{time::Duration, thread, sync::mpsc, process::Output};
 use async_process::Command;
 use futures::executor;
-use tokio::sync::oneshot;
-use tokio::time;
+use tokio::{sync::oneshot, time};
 
 pub async fn run_ping(cmd: &str, args: Vec<String>) -> Result<Output> {
     Command::new(cmd)
@@ -51,14 +49,14 @@ impl Pinger for LinuxPinger {
             P: Parser,
     {
         let args = self.ping_args(target);
-        let interval = self.interval.clone();
+        let interval = self.interval;
 
         let (tx, rx) = mpsc::channel();
 
         let (notify_exit_sender, exit_receiver) = oneshot::channel();
         let ping_thread = Some((notify_exit_sender,
             thread::spawn({
-                let (cmd, args) = args.clone();
+                let (cmd, args) = args;
                 move || {
                     let runtime = tokio::runtime::Builder::new_current_thread()
                         .enable_all()

@@ -2,13 +2,9 @@ use crate::{Parser, PingError, PingResult, Pinger, PhantomPinger};
 use anyhow::Result;
 use dns_lookup::lookup_host;
 use regex::Regex;
-use std::net::IpAddr;
-use std::sync::mpsc;
-use std::thread;
-use std::time::Duration;
+use std::{time::Duration, thread, sync::mpsc, net::IpAddr};
 use winping::{Buffer, AsyncPinger as WinPinger};
-use tokio::time;
-use tokio::sync::oneshot;
+use tokio::{time, sync::oneshot};
 
 
 lazy_static! {
