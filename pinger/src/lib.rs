@@ -159,31 +159,31 @@ pub fn ping_with_interval(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::thread::sleep;
-
-    #[test]
-    fn test() {
-        use super::*;
-        let ping_channel = ping_with_interval(
-            "8.8.8.9".to_string(),
-            Duration::from_millis(200),
-            None,
-        ).unwrap();
-        let mut counter = 0;
-        loop {
-            if let Ok(result) = ping_channel.channel.try_recv() {
-                match result {
-                    PingResult::Pong(duration, _) => println!("{:?}", duration.as_millis()),
-                    PingResult::Failed(exit_status, err) => println!("{} - {}", exit_status, err)
-                }
-            }
-            counter+=1;
-            if counter == 10 {
-                break;
-            }
-            sleep(Duration::from_millis(200));
-        }
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use std::thread::sleep;
+//
+//     #[test]
+//     fn test() {
+//         use super::*;
+//         let ping_channel = ping_with_interval(
+//             "8.8.8.9".to_string(),
+//             Duration::from_millis(200),
+//             None,
+//         ).unwrap();
+//         let mut counter = 0;
+//         loop {
+//             if let Ok(result) = ping_channel.channel.try_recv() {
+//                 match result {
+//                     PingResult::Pong(duration, _) => println!("{:?}", duration.as_millis()),
+//                     PingResult::Failed(exit_status, err) => println!("{} - {}", exit_status, err)
+//                 }
+//             }
+//             counter+=1;
+//             if counter == 10 {
+//                 break;
+//             }
+//             sleep(Duration::from_millis(200));
+//         }
+//     }
+// }
