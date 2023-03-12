@@ -49,7 +49,7 @@ impl Pinger for WindowsPinger {
                                             let pinger = WinPinger::new();
                                             loop {
                                                 let buffer = Buffer::new();
-                                                match pinger.send(parsed_ip.clone(), buffer).await.result {
+                                                match pinger.send(parsed_ip, buffer).await.result {
                                                     Ok(rtt) => {
                                                         if tx
                                                             .send(PingResult::Pong(

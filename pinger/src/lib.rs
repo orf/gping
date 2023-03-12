@@ -143,7 +143,7 @@ pub fn ping_with_interval(
         let mut p = windows::WindowsPinger::default();
         p.set_interval(interval);
         p.set_interface(interface);
-        return p.start::<windows::WindowsParser>(addr);
+        p.start::<windows::WindowsParser>(addr);
     }
     #[cfg(unix)]
     {

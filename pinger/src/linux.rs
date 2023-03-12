@@ -141,6 +141,6 @@ impl Parser for LinuxParser {
                 return self.extract_regex(&UBUNTU_RE, line.to_string());
             }
         }
-        return Some(PingResult::Failed("1".to_string(), format!("Failed to parse: {}", lines)));
+        return Some(PingResult::Failed("1".to_string(), format!("Failed to parse: {lines}")));
     }
 }
