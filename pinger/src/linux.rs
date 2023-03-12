@@ -108,13 +108,12 @@ impl Pinger for LinuxPinger {
     }
 
     fn ping_args(&self, target: String) -> (String, Vec<String>) {
-        // The -O flag ensures we "no answer yet" messages from ping
-        // See https://superuser.com/questions/270083/linux-ping-show-time-out
+        // timeout of 1 second
         let mut args = vec![
             "-c".to_string(),
             "1".to_string(),
             "-W".to_string(),
-            format!("{}", self.interval.as_millis() as f32 / 1_000_f32),
+            "1.0".to_string()
         ];
         if let Some(interface) = &self.interface {
             args.push("-I".into());
