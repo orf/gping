@@ -78,7 +78,7 @@ impl Pinger for LinuxPinger {
                                         }
                                     } else {
                                         let decoded_stderr = String::from_utf8(output.stderr.clone()).expect("Error decoding stderr");
-                                        let _ = tx.send(PingResult::Failed(output.status.to_string(), decoded_stderr));
+                                        tx.send(PingResult::Failed(output.status.to_string(), decoded_stderr)).ok();
                                     }
                                 }
                                 Err(_) => {

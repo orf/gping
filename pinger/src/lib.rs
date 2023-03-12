@@ -164,11 +164,10 @@ mod tests {
     use std::thread::sleep;
 
     #[test]
-    #[cfg(target_os = "linux")]
     fn test() {
         use super::*;
         let ping_channel = ping_with_interval(
-            "8.8.8.8".to_string(),
+            "8.8.8.9".to_string(),
             Duration::from_millis(200),
             None,
         ).unwrap();
