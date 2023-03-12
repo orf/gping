@@ -1,15 +1,31 @@
-use crate::{run_ping, Parser, PingDetectionError, PingResult, Pinger};
+use crate::{Parser, PingDetectionError, PingResult, Pinger, PhantomPinger};
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::{time::Duration, thread, sync::mpsc};
+use std::process::Output;
+use async_process::Command;
+use futures::executor;
+use tokio::sync::oneshot;
+use tokio::time;
 
+pub async fn run_ping(cmd: &str, args: Vec<String>) -> Result<Output> {
+    Command::new(cmd)
+        .args(&args)
+        // Required to ensure that the output is formatted in the way we expect, not
+        // using locale specific delimiters.
+        .env("LANG", "C")
+        .env("LC_ALL", "C")
+        .output().await
+        .with_context(|| format!("Failed to run ping with args {:?}", &args))
+}
 
 pub fn detect_linux_ping() -> Result<(), PingDetectionError> {
-    let output = run_ping("ping", vec!["-V".to_string()])?;
+    let output = executor::block_on(run_ping("ping", vec!["-V".to_string()]))?;
+
     let stdout = String::from_utf8(output.stdout).context("Error decoding ping stdout")?;
     let stderr = String::from_utf8(output.stderr).context("Error decoding ping stderr")?;
 
-   if stdout.contains("iputils") {
+    if stdout.contains("iputils") {
         Ok(())
     } else {
         let first_two_lines_stderr: Vec<String> =
@@ -30,44 +46,59 @@ pub struct LinuxPinger {
 }
 
 impl Pinger for LinuxPinger {
-
-    fn start<P>(&self, target: String) -> Result<mpsc::Receiver<PingResult>>
+    fn start<P>(&self, target: String) -> Result<PhantomPinger>
         where
             P: Parser,
     {
-
         let args = self.ping_args(target);
         let interval = self.interval.clone();
 
         let (tx, rx) = mpsc::channel();
-        thread::spawn({
-            let (cmd, args) = args.clone();
-            move || {
-                let parser = P::default();
-                loop {
-                    match run_ping(cmd.as_str(), args.clone()) {
-                        Ok(output) => {
-                            let outy = String::from_utf8(output.stdout.clone());
-                            if output.status.success() {
-                                if let Some(result) = parser.parse(String::from_utf8(output.stdout.clone()).expect("Error decoding stdout")) {
-                                    if tx.send(result).is_err() {
-                                        break;
+
+        let (notify_exit_sender, exit_receiver) = oneshot::channel();
+        let ping_thread = Some((notify_exit_sender,
+            thread::spawn({
+                let (cmd, args) = args.clone();
+                move || {
+                    let runtime = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .unwrap();
+
+                    runtime.spawn(async move {
+                        loop {
+                            let parser = P::default();
+                            match run_ping(cmd.as_str(), args.clone()).await {
+                                Ok(output) => {
+                                    if output.status.success() {
+                                        if let Some(result) = parser.parse(String::from_utf8(output.stdout.clone()).expect("Error decoding stdout")) {
+                                            if tx.send(result).is_err() {
+                                                break;
+                                            }
+                                        }
+                                    } else {
+                                        let decoded_stderr = String::from_utf8(output.stderr.clone()).expect("Error decoding stderr");
+                                        let _ = tx.send(PingResult::Failed(output.status.to_string(), decoded_stderr));
                                     }
                                 }
-                            } else {
-                                let decoded_stderr = String::from_utf8(output.stderr.clone()).expect("Error decoding stderr");
-                                let _ = tx.send(PingResult::Failed(output.status.to_string(), decoded_stderr));
-                            }
+                                Err(_) => {
+                                    panic!("Ping command failed - this should not happen, please verify the integrity of the ping command")
+                                }
+                            };
+                            time::sleep(interval).await;
                         }
-                        Err(_) => {
-                            panic!("Ping command failed - this should not happen, please verify the integrity of the ping command")
-                        }
-                    };
-                    thread::sleep(interval);
-                }
-        }});
+                    });
 
-        Ok(rx)
+                    runtime.block_on(async move {
+                        let _ = exit_receiver.await;
+                    });
+                }
+            })
+        ));
+        Ok(PhantomPinger {
+            channel: rx,
+            ping_thread,
+        })
     }
 
     fn set_interval(&mut self, interval: Duration) {
@@ -107,7 +138,6 @@ pub struct LinuxParser {}
 
 impl Parser for LinuxParser {
     fn parse(&self, lines: String) -> Option<PingResult> {
-
         for line in lines.lines() {
             if line.starts_with("64 bytes from") {
                 return self.extract_regex(&UBUNTU_RE, line.to_string());

@@ -7,6 +7,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 use winping::{Buffer, Pinger as WinPinger};
+use tokio::time;
 
 lazy_static! {
     static ref RE: Regex = Regex::new(r"(?ix-u)time=(?P<ms>\d+)(?:\.(?P<ns>\d+))?").unwrap();
