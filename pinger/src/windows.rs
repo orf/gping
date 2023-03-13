@@ -1,4 +1,4 @@
-use crate::{Parser, PingError, PingResult, Pinger, Pinger};
+use crate::{Parser, PingError, PingResult, Pinger, PingerTrait};
 use anyhow::Result;
 use dns_lookup::lookup_host;
 use regex::Regex;
