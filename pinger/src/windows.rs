@@ -1,4 +1,4 @@
-use crate::{Parser, PingError, PingResult, Pinger, PhantomPinger};
+use crate::{Parser, PingError, PingResult, Pinger, Pinger};
 use anyhow::Result;
 use dns_lookup::lookup_host;
 use regex::Regex;
@@ -17,10 +17,10 @@ pub struct WindowsPinger {
     interface: Option<String>,
 }
 
-impl Pinger for WindowsPinger {
-    fn start<P>(&self, target: String) -> Result<PhantomPinger>
-    where
-        P: Parser,
+impl PingerTrait for WindowsPinger {
+    fn start<P>(&self, target: String) -> Result<Pinger>
+        where
+            P: Parser,
     {
         let interval = self.interval;
         let parsed_ip: IpAddr = match target.parse() {
@@ -76,7 +76,7 @@ impl Pinger for WindowsPinger {
                                     }
                                 })
         ));
-        Ok(PhantomPinger {
+        Ok(Pinger {
             channel: rx,
             ping_thread,
         })
@@ -97,7 +97,7 @@ pub struct WindowsParser {}
 impl Parser for WindowsParser {
     fn parse(&self, line: String) -> Option<PingResult> {
         if line.contains("timed out") || line.contains("failure") {
-            return Some(PingResult::Failed("1".to_string(),line));
+            return Some(PingResult::Failed("1".to_string(), line));
         }
         self.extract_regex(&RE, line)
     }

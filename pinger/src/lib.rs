@@ -37,12 +37,12 @@ pub mod windows;
 #[cfg(test)]
 mod test;
 
-pub struct PhantomPinger {
+pub struct Pinger {
     pub channel: mpsc::Receiver<PingResult>,
     ping_thread: Option<(oneshot::Sender<()>, JoinHandle<()>)>,
 }
 
-impl Drop for PhantomPinger {
+impl Drop for Pinger {
     fn drop(&mut self) {
         if let Some((notify_exit_sender, thread)) = self.ping_thread.take() {
             notify_exit_sender.send(()).unwrap();
@@ -52,8 +52,8 @@ impl Drop for PhantomPinger {
 }
 
 
-pub trait Pinger: Default {
-    fn start<P: Parser>(&self, target: String) -> Result<PhantomPinger>;
+pub trait PingerTrait: Default {
+    fn start<P: Parser>(&self, target: String) -> Result<Pinger>;
 
 
     fn set_interval(&mut self, interval: Duration);
@@ -128,7 +128,7 @@ pub enum PingError {
 }
 
 /// Start pinging a an address. The address can be either a hostname or an IP address.
-pub fn ping(addr: String, interface: Option<String>) -> Result<PhantomPinger> {
+pub fn ping(addr: String, interface: Option<String>) -> Result<Pinger> {
     ping_with_interval(addr, Duration::from_millis(200), interface)
 }
 
@@ -137,7 +137,7 @@ pub fn ping_with_interval(
     addr: String,
     interval: Duration,
     interface: Option<String>,
-) -> Result<PhantomPinger> {
+) -> Result<Pinger> {
     #[cfg(windows)]
     {
         let mut p = windows::WindowsPinger::default();

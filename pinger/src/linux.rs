@@ -1,4 +1,4 @@
-use crate::{Parser, PingDetectionError, PingResult, Pinger, PhantomPinger};
+use crate::{Parser, PingDetectionError, PingResult, PingerTrait, Pinger};
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::{time::Duration, thread, sync::mpsc, process::Output};
@@ -43,8 +43,8 @@ pub struct LinuxPinger {
     interface: Option<String>,
 }
 
-impl Pinger for LinuxPinger {
-    fn start<P>(&self, target: String) -> Result<PhantomPinger>
+impl PingerTrait for LinuxPinger {
+    fn start<P>(&self, target: String) -> Result<Pinger>
         where
             P: Parser,
     {
@@ -55,44 +55,44 @@ impl Pinger for LinuxPinger {
 
         let (notify_exit_sender, exit_receiver) = oneshot::channel();
         let ping_thread = Some((notify_exit_sender,
-            thread::spawn({
-                let (cmd, args) = args;
-                move || {
-                    let runtime = tokio::runtime::Builder::new_current_thread()
-                        .enable_all()
-                        .build()
-                        .unwrap();
+                                thread::spawn({
+                                    let (cmd, args) = args;
+                                    move || {
+                                        let runtime = tokio::runtime::Builder::new_current_thread()
+                                            .enable_all()
+                                            .build()
+                                            .unwrap();
 
-                    runtime.spawn(async move {
-                        loop {
-                            let parser = P::default();
-                            match run_ping(cmd.as_str(), args.clone()).await {
-                                Ok(output) => {
-                                    if output.status.success() {
-                                        if let Some(result) = parser.parse(String::from_utf8(output.stdout.clone()).expect("Error decoding stdout")) {
-                                            if tx.send(result).is_err() {
-                                                break;
+                                        runtime.spawn(async move {
+                                            loop {
+                                                let parser = P::default();
+                                                match run_ping(cmd.as_str(), args.clone()).await {
+                                                    Ok(output) => {
+                                                        if output.status.success() {
+                                                            if let Some(result) = parser.parse(String::from_utf8(output.stdout.clone()).expect("Error decoding stdout")) {
+                                                                if tx.send(result).is_err() {
+                                                                    break;
+                                                                }
+                                                            }
+                                                        } else {
+                                                            tx.send(PingResult::Failed(output.status.to_string(), "Timeout reached".to_string())).ok();
+                                                        }
+                                                    }
+                                                    Err(e) => {
+                                                        panic!("Ping command failed - this should not happen, please verify the integrity of the ping command: {}", e.to_string())
+                                                    }
+                                                };
+                                                time::sleep(interval).await;
                                             }
-                                        }
-                                    } else {
-                                        tx.send(PingResult::Failed(output.status.to_string(), "Timeout reached".to_string())).ok();
-                                    }
-                                }
-                                Err(e) => {
-                                    panic!("Ping command failed - this should not happen, please verify the integrity of the ping command: {}", e.to_string())
-                                }
-                            };
-                            time::sleep(interval).await;
-                        }
-                    });
+                                        });
 
-                    runtime.block_on(async move {
-                        let _ = exit_receiver.await;
-                    });
-                }
-            })
+                                        runtime.block_on(async move {
+                                            let _ = exit_receiver.await;
+                                        });
+                                    }
+                                })
         ));
-        Ok(PhantomPinger {
+        Ok(Pinger {
             channel: rx,
             ping_thread,
         })
@@ -113,7 +113,7 @@ impl Pinger for LinuxPinger {
             "-c".to_string(),
             "1".to_string(),
             "-W".to_string(),
-            "1.0".to_string()
+            "1.0".to_string(),
         ];
         if let Some(interface) = &self.interface {
             args.push("-I".into());
