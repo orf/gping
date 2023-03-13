@@ -1,7 +1,6 @@
 [workspace]
 
 members = [
-    "gping",
     "pinger"
 ]
 

@@ -1,12 +1,11 @@
-use crate::{Parser, PingError, PingResult, Pinger};
+use crate::{Parser, PingError, PingResult, Pinger, Pinger};
 use anyhow::Result;
 use dns_lookup::lookup_host;
 use regex::Regex;
-use std::net::IpAddr;
-use std::sync::mpsc;
-use std::thread;
-use std::time::Duration;
-use winping::{Buffer, Pinger as WinPinger};
+use std::{time::Duration, thread, sync::mpsc, net::IpAddr};
+use winping::{Buffer, AsyncPinger as WinPinger};
+use tokio::{time, sync::oneshot};
+
 
 lazy_static! {
     static ref RE: Regex = Regex::new(r"(?ix-u)time=(?P<ms>\d+)(?:\.(?P<ns>\d+))?").unwrap();
@@ -18,10 +17,10 @@ pub struct WindowsPinger {
     interface: Option<String>,
 }
 
-impl Pinger for WindowsPinger {
-    fn start<P>(&self, target: String) -> Result<mpsc::Receiver<PingResult>>
-    where
-        P: Parser,
+impl PingerTrait for WindowsPinger {
+    fn start<P>(&self, target: String) -> Result<Pinger>
+        where
+            P: Parser,
     {
         let interval = self.interval;
         let parsed_ip: IpAddr = match target.parse() {
@@ -37,35 +36,50 @@ impl Pinger for WindowsPinger {
         }?;
 
         let (tx, rx) = mpsc::channel();
+        let (notify_exit_sender, exit_receiver) = oneshot::channel();
+        let ping_thread = Some((notify_exit_sender,
+                                thread::spawn({
+                                    move || {
+                                        let runtime = tokio::runtime::Builder::new_current_thread()
+                                            .enable_all()
+                                            .build()
+                                            .unwrap();
 
-        thread::spawn(move || {
-            let pinger = WinPinger::new().expect("Failed to create a WinPinger instance");
-            let mut buffer = Buffer::new();
-            loop {
-                match pinger.send(parsed_ip.clone(), &mut buffer) {
-                    Ok(rtt) => {
-                        if tx
-                            .send(PingResult::Pong(
-                                Duration::from_millis(rtt as u64),
-                                "".to_string(),
-                            ))
-                            .is_err()
-                        {
-                            break;
-                        }
-                    }
-                    Err(_) => {
-                        // Fuck it. All errors are timeouts. Why not.
-                        if tx.send(PingResult::Timeout("".to_string())).is_err() {
-                            break;
-                        }
-                    }
-                }
-                thread::sleep(interval);
-            }
-        });
+                                        runtime.spawn(async move {
+                                            let pinger = WinPinger::new();
+                                            loop {
+                                                let buffer = Buffer::new();
+                                                match pinger.send(parsed_ip, buffer).await.result {
+                                                    Ok(rtt) => {
+                                                        if tx
+                                                            .send(PingResult::Pong(
+                                                                Duration::from_millis(rtt as u64),
+                                                                "".to_string(),
+                                                            ))
+                                                            .is_err()
+                                                        {
+                                                            break;
+                                                        }
+                                                    }
+                                                    Err(e) => {
+                                                        // Fuck it. All errors are timeouts. Why not.
+                                                        tx.send(PingResult::Failed("-1".to_string(), e.to_string())).ok();
+                                                    }
+                                                }
+                                                time::sleep(interval).await;
+                                            }
+                                        });
 
-        Ok(rx)
+                                        runtime.block_on(async move {
+                                            let _ = exit_receiver.await;
+                                        });
+                                    }
+                                })
+        ));
+        Ok(Pinger {
+            channel: rx,
+            ping_thread,
+        })
     }
 
     fn set_interval(&mut self, interval: Duration) {
@@ -83,7 +97,7 @@ pub struct WindowsParser {}
 impl Parser for WindowsParser {
     fn parse(&self, line: String) -> Option<PingResult> {
         if line.contains("timed out") || line.contains("failure") {
-            return Some(PingResult::Timeout(line));
+            return Some(PingResult::Failed("1".to_string(), line));
         }
         self.extract_regex(&RE, line)
     }
