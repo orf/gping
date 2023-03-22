@@ -49,7 +49,6 @@ impl LinuxPinger {
             socket.set_unicast_hops_v6(64)?;
         }
 
-        socket.set_write_timeout(Some(Duration::from_millis(100)))?;
         socket.set_read_timeout(Some(Duration::from_millis(100)))?;
 
         let mut read_socket = socket.try_clone()?;
