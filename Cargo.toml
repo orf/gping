@@ -1,9 +1,20 @@
-[workspace]
+[package]
+name = "pinger"
+version = "1.0.0"
+authors = ["Jonathan Nilsson <jonathan@voysys.se>"]
+edition = "2021"
+license = "MIT"
+description = "A small cross-platform library to execute the ping command and parse the output"
+repository = "https://github.com/voysys/pinger/"
 
-members = [
-    "pinger"
-]
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
 
-[profile.release]
-lto = true
-codegen-units = 1
+[target.'cfg(windows)'.dependencies]
+winping = "0.10"
+dns-lookup = "1"
+
+[target.'cfg(unix)'.dependencies]
+socket2 = { version = "0.5", features = ["all"] }
+rand = "0.8"
