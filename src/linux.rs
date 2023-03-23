@@ -1,20 +1,26 @@
 use crate::{
     icmp::{EchoReply, EchoRequest, IcmpV4, IcmpV6, ICMP_HEADER_SIZE},
     ipv4::IpV4Packet,
-    Pinger,
 };
+use caps::{CapSet, Capability};
+use dns_lookup::lookup_host;
 use rand::random;
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     collections::HashMap,
     error::Error,
     io::Read,
-    net::ToSocketAddrs,
-    sync::{mpsc, Arc, Mutex},
-    thread::{self},
+    mem,
+    net::{IpAddr, SocketAddr},
+    os::fd::{AsRawFd, RawFd},
+    ptr::null_mut,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc,
+    },
+    thread::{self, JoinHandle},
     time::{Duration, Instant},
 };
-use tokio::{sync::oneshot, time};
 
 const TOKEN_SIZE: usize = 24;
 const ECHO_REQUEST_BUFFER_SIZE: usize = ICMP_HEADER_SIZE + TOKEN_SIZE;
@@ -22,150 +28,235 @@ type Token = [u8; TOKEN_SIZE];
 
 const IN_FLIGHT_TO_RETAIN: usize = 10;
 
-#[derive(Default)]
-pub struct LinuxPinger {
-    interval: Duration,
-    interface: Option<String>,
+fn create_pipe() -> (RawFd, RawFd) {
+    let mut fds = [0, 0];
+    unsafe {
+        libc::pipe(fds.as_mut_ptr());
+    }
+
+    (fds[0], fds[1])
 }
 
-impl LinuxPinger {
-    pub fn start(&self, target: String) -> Result<Pinger, Box<dyn Error>> {
-        let interval = self.interval;
+pub struct Pinger {
+    pub channel: mpsc::Receiver<Duration>,
+    run: Arc<AtomicBool>,
+    thread: Option<JoinHandle<()>>,
+    send_pipe_fd: RawFd,
+}
 
-        let dest = target
-            .to_socket_addrs()?
-            .next()
-            .ok_or_else(|| format!("Invalid adder: {target}"))?;
+impl Drop for Pinger {
+    fn drop(&mut self) {
+        self.run.store(false, Ordering::SeqCst);
 
-        let socket = if dest.is_ipv4() {
-            Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4))?
-        } else {
-            Socket::new(Domain::IPV6, Type::RAW, Some(Protocol::ICMPV6))?
-        };
-
-        if dest.is_ipv4() {
-            socket.set_ttl(64)?;
-        } else {
-            socket.set_unicast_hops_v6(64)?;
+        if self.send_pipe_fd >= 0 {
+            unsafe {
+                libc::write(
+                    self.send_pipe_fd,
+                    "wakeup".as_ptr() as *const libc::c_void,
+                    6,
+                );
+            }
         }
 
-        socket.set_read_timeout(Some(Duration::from_millis(100)))?;
+        if let Some(thread) = self.thread.take() {
+            thread.join().ok();
+        }
+        unsafe {
+            if self.send_pipe_fd >= 0 {
+                libc::close(self.send_pipe_fd);
+                self.send_pipe_fd = -1
+            }
+        }
+    }
+}
 
-        let mut read_socket = socket.try_clone()?;
-        let write_socket = socket.try_clone()?;
+impl Pinger {
+    pub fn new(
+        addr: String,
+        interval: Duration,
+        interface: Option<String>,
+    ) -> Result<Pinger, Box<dyn Error>> {
+        let run = Arc::new(AtomicBool::new(true));
 
-        let (tx, rx) = mpsc::channel();
+        let addr = match addr.parse::<IpAddr>() {
+            Err(_) => {
+                let ips = lookup_host(&addr)?;
+                if ips.is_empty() {
+                    Err(format!("Unknown host: {addr}"))
+                } else {
+                    Ok(ips[0])
+                }
+            }
+            Ok(addr) => Ok(addr),
+        }?;
 
-        let in_flight_table = Arc::new(Mutex::new(HashMap::new()));
+        let (read_fd, write_fd) = create_pipe();
 
-        let (notify_exit_sender, exit_receiver) = oneshot::channel();
-        let ping_thread = Some((
-            notify_exit_sender,
-            thread::spawn({
-                move || {
-                    let runtime = tokio::runtime::Builder::new_current_thread()
-                        .enable_all()
-                        .build()
-                        .unwrap();
+        let (tx, rx) = mpsc::sync_channel(16);
 
-                    runtime.spawn({
-                        let in_flight_table = in_flight_table.clone();
+        let thread = thread::spawn({
+            let run = run.clone();
+            move || {
+                raise_cap_net_raw_to_effective();
 
-                        async move {
-                            loop {
-                                let mut buffer = [0; ECHO_REQUEST_BUFFER_SIZE];
+                let mut socket = match if addr.is_ipv4() {
+                    Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::ICMPV4))
+                } else {
+                    Socket::new(Domain::IPV6, Type::RAW, Some(Protocol::ICMPV6))
+                } {
+                    Ok(s) => s,
+                    Err(err) => {
+                        log::error!("Failed create raw socket: {}", err);
+                        return;
+                    }
+                };
 
-                                let payload: Token = random();
+                if addr.is_ipv4() {
+                    socket.set_ttl(64).ok();
+                } else {
+                    socket.set_unicast_hops_v6(64).ok();
+                }
 
-                                let request = EchoRequest {
-                                    ident: random(),
-                                    seq_cnt: 1,
-                                    payload: &payload,
-                                };
+                socket.set_nonblocking(true).ok();
 
-                                if dest.is_ipv4() {
-                                    request.encode::<IcmpV4>(&mut buffer);
-                                } else {
-                                    request.encode::<IcmpV6>(&mut buffer);
-                                };
+                if let Some(interface) = interface {
+                    socket.bind_device(Some(interface.as_bytes())).ok();
+                }
 
-                                write_socket.send_to(&buffer, &dest.into()).ok();
-                                let send_time = Instant::now();
+                let mut in_flight_table = HashMap::new();
 
-                                {
-                                    let mut lock = in_flight_table.lock().unwrap();
-                                    lock.insert(payload, send_time);
+                let mut read_fds = unsafe { mem::zeroed() };
 
-                                    while lock.len() > IN_FLIGHT_TO_RETAIN {
-                                        let oldest = lock
-                                            .iter()
-                                            .max_by(|(_, at), (_, bt)| {
-                                                at.elapsed().cmp(&bt.elapsed())
-                                            })
-                                            .map(|(k, _)| k.to_owned())
-                                            .unwrap();
+                let mut last_send = Instant::now()
+                    .checked_sub(interval)
+                    .unwrap_or_else(Instant::now);
 
-                                        lock.remove(&oldest);
-                                    }
-                                }
+                while run.load(Ordering::SeqCst) {
+                    unsafe {
+                        let socket_fd = socket.as_raw_fd();
 
-                                time::sleep(interval).await;
-                            }
+                        libc::FD_ZERO(&mut read_fds);
+                        libc::FD_SET(read_fd, &mut read_fds);
+                        libc::FD_SET(socket_fd, &mut read_fds);
+
+                        let next = last_send + interval;
+
+                        if let Some(wait) = next.checked_duration_since(Instant::now()) {
+                            let mut timeout = libc::timeval {
+                                tv_sec: wait.as_secs() as _,
+                                tv_usec: wait.subsec_micros() as _,
+                            };
+
+                            let max_fd = read_fd.max(socket_fd);
+
+                            libc::select(
+                                max_fd + 1,
+                                &mut read_fds,
+                                null_mut(),
+                                null_mut(),
+                                &mut timeout,
+                            );
                         }
-                    });
+                    }
 
-                    runtime.spawn({
-                        let in_flight_table = in_flight_table.clone();
+                    if last_send.elapsed() > interval {
+                        last_send = Instant::now();
 
-                        let handle_reply = move |reply: EchoReply| {
-                            let mut lock = in_flight_table.lock().unwrap();
+                        let mut buffer = [0; ECHO_REQUEST_BUFFER_SIZE];
 
-                            if let Ok(token) = Token::try_from(reply.payload) {
-                                if let Some(send_time) = lock.remove(&token) {
-                                    tx.send(Ok(send_time.elapsed())).ok();
-                                }
-                            }
+                        let payload: Token = random();
+
+                        let request = EchoRequest {
+                            ident: random(),
+                            seq_cnt: 1,
+                            payload: &payload,
                         };
 
-                        async move {
-                            loop {
-                                let mut buffer: [u8; 2048] = [0; 2048];
-                                if let Ok(amt) = read_socket.read(&mut buffer) {
-                                    if dest.is_ipv4() {
-                                        if let Ok(packet) = IpV4Packet::decode(&buffer[..amt]) {
-                                            if let Ok(reply) =
-                                                EchoReply::decode::<IcmpV4>(packet.data)
+                        if addr.is_ipv4() {
+                            request.encode::<IcmpV4>(&mut buffer);
+                        } else {
+                            request.encode::<IcmpV6>(&mut buffer);
+                        };
+
+                        let dest = SocketAddr::new(addr, 0);
+
+                        socket.send_to(&buffer, &dest.into()).ok();
+                        let send_time = Instant::now();
+
+                        {
+                            in_flight_table.insert(payload, send_time);
+
+                            while in_flight_table.len() > IN_FLIGHT_TO_RETAIN {
+                                let oldest = in_flight_table
+                                    .iter()
+                                    .max_by(|(_, at), (_, bt)| at.elapsed().cmp(&bt.elapsed()))
+                                    .map(|(k, _)| k.to_owned())
+                                    .unwrap();
+
+                                in_flight_table.remove(&oldest);
+                            }
+                        }
+                    }
+
+                    {
+                        let mut buffer: [u8; 2048] = [0; 2048];
+                        if let Ok(amt) = socket.read(&mut buffer) {
+                            if addr.is_ipv4() {
+                                if let Ok(packet) = IpV4Packet::decode(&buffer[..amt]) {
+                                    if let Ok(reply) = EchoReply::decode::<IcmpV4>(packet.data) {
+                                        if let Ok(token) = Token::try_from(reply.payload) {
+                                            if let Some(send_time) = in_flight_table.remove(&token)
                                             {
-                                                handle_reply(reply);
+                                                tx.try_send(send_time.elapsed()).ok();
                                             }
-                                        };
-                                    } else if let Ok(reply) =
-                                        EchoReply::decode::<IcmpV6>(&buffer[..amt])
-                                    {
-                                        handle_reply(reply);
+                                        }
+                                    }
+                                };
+                            } else if let Ok(reply) = EchoReply::decode::<IcmpV6>(&buffer[..amt]) {
+                                if let Ok(token) = Token::try_from(reply.payload) {
+                                    if let Some(send_time) = in_flight_table.remove(&token) {
+                                        tx.try_send(send_time.elapsed()).ok();
                                     }
                                 }
                             }
                         }
-                    });
-
-                    runtime.block_on(async move {
-                        let _ = exit_receiver.await;
-                    });
+                    }
                 }
-            }),
-        ));
+
+                unsafe {
+                    libc::close(read_fd);
+                }
+
+                drop_cap_net_raw_caps_from_effective();
+            }
+        });
+
         Ok(Pinger {
             channel: rx,
-            ping_thread,
+            run,
+            thread: Some(thread),
+            send_pipe_fd: write_fd,
         })
     }
+}
 
-    pub fn set_interval(&mut self, interval: Duration) {
-        self.interval = interval;
+/// Start pinging a an address. The address can be either a hostname or an IP address.
+pub fn ping_with_interval(
+    addr: impl Into<String>,
+    interval: Duration,
+    interface: Option<impl Into<String>>,
+) -> Result<Pinger, Box<dyn Error>> {
+    Pinger::new(addr.into(), interval, interface.map(|s| s.into()))
+}
+
+pub fn raise_cap_net_raw_to_effective() {
+    if let Err(err) = caps::raise(None, CapSet::Effective, Capability::CAP_NET_RAW) {
+        log::error!("Failed to raise CAP_NET_RAW to effective: {}", err);
     }
+}
 
-    pub fn set_interface(&mut self, interface: Option<String>) {
-        self.interface = interface;
+pub fn drop_cap_net_raw_caps_from_effective() {
+    if let Err(err) = caps::drop(None, CapSet::Effective, Capability::CAP_NET_RAW) {
+        log::error!("Failed to drop CAP_NET_RAW from effective: {}", err);
     }
 }

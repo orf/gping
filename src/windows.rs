@@ -4,15 +4,27 @@ use std::{net::IpAddr, sync::mpsc, thread, time::Duration};
 use tokio::{sync::oneshot, time};
 use winping::{AsyncPinger as WinPinger, Buffer};
 
-#[derive(Default)]
-pub struct WindowsPinger {
-    interval: Duration,
-    interface: Option<String>,
+pub struct Pinger {
+    pub channel: mpsc::Receiver<Duration>,
+    ping_thread: Option<(oneshot::Sender<()>, JoinHandle<()>)>,
 }
 
-impl WindowsPinger {
-    pub fn start(&self, target: String) -> Result<Pinger> {
-        let interval = self.interval;
+impl Drop for Pinger {
+    fn drop(&mut self) {
+        if let Some((notify_exit_sender, thread)) = self.ping_thread.take() {
+            notify_exit_sender.send(()).unwrap();
+            thread.join().unwrap();
+        }
+    }
+}
+
+impl Pinger {
+    pub fn new(
+        &self,
+        addr: String,
+        interval: Duration,
+        interface: Option<String>,
+    ) -> Result<Pinger> {
         let parsed_ip: IpAddr = match target.parse() {
             Err(_) => {
                 let things = lookup_host(target.as_str())?;
@@ -25,7 +37,7 @@ impl WindowsPinger {
             Ok(addr) => Ok(addr),
         }?;
 
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = mpsc::sync_channel(16);
         let (notify_exit_sender, exit_receiver) = oneshot::channel();
         let ping_thread = Some((
             notify_exit_sender,
@@ -40,15 +52,8 @@ impl WindowsPinger {
                         let pinger = WinPinger::new();
                         loop {
                             let buffer = Buffer::new();
-                            match pinger.send(parsed_ip, buffer).await.result {
-                                Ok(rtt) => {
-                                    if tx.send(Ok(Duration::from_millis(rtt as u64))).is_err() {
-                                        break;
-                                    }
-                                }
-                                Err(e) => {
-                                    tx.send(Err(e.to_string())).ok();
-                                }
+                            if let Ok(rtt) = pinger.send(parsed_ip, buffer).await.result {
+                                tx.try_send(Duration::from_millis(rtt as u64)).ok();
                             }
                             time::sleep(interval).await;
                         }
@@ -65,12 +70,13 @@ impl WindowsPinger {
             ping_thread,
         })
     }
+}
 
-    pub fn set_interval(&mut self, interval: Duration) {
-        self.interval = interval;
-    }
-
-    pub fn set_interface(&mut self, interface: Option<String>) {
-        self.interface = interface;
-    }
+/// Start pinging a an address. The address can be either a hostname or an IP address.
+pub fn ping_with_interval(
+    addr: impl Into<String>,
+    interval: Duration,
+    interface: Option<impl Into<String>>,
+) -> Result<Pinger, Box<dyn Error>> {
+    Pinger::new(addr.into(), interval, interface.map(|s| s.into()))
 }

@@ -8,13 +8,16 @@ description = "A small cross-platform library to execute the ping command and pa
 repository = "https://github.com/voysys/pinger/"
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
-futures = "0.3"
+dns-lookup = "1"
+log = "0.4"
 
 [target.'cfg(windows)'.dependencies]
+futures = "0.3"
+tokio = { version = "1", features = ["full"] }
 winping = "0.10"
-dns-lookup = "1"
 
 [target.'cfg(unix)'.dependencies]
-socket2 = { version = "0.5", features = ["all"] }
+caps = "0.5"
+libc = "0.2"
 rand = "0.8"
+socket2 = { version = "0.5", features = ["all"] }
