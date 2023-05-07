@@ -306,14 +306,14 @@ dependencies = [
 
 [[package]]
 name = "dns-lookup"
-version = "1.0.8"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53ecafc952c4528d9b51a458d1a8904b81783feff9fde08ab6ed2545ff396872"
+checksum = "3a5e05b775571a604d4bd5fa4afb2df8cb8f8f8f18dd1d8a4ba76ce8291aaa11"
 dependencies = [
  "cfg-if",
  "libc",
  "socket2",
- "winapi",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -818,12 +818,12 @@ checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
 
 [[package]]
 name = "socket2"
-version = "0.4.9"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64a4a911eed85daf18834cfaa86a79b7d266ff93ff5ba14005426219480ed662"
+checksum = "6d283f86695ae989d1e18440a943880967156325ba025f05049946bff47bcc2b"
 dependencies = [
  "libc",
- "winapi",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
