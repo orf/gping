@@ -491,7 +491,7 @@ fn main() -> Result<()> {
                         for (area, paragraph) in
                             header_layout.into_iter().zip(plot_data.header_stats())
                         {
-                            f.render_widget(paragraph, area);
+                            f.render_widget(paragraph, *area);
                         }
                     }
 
