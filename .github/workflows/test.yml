@@ -95,7 +95,8 @@ jobs:
           toolchain: stable
           override: true
       - uses: Swatinem/rust-cache@v2
-
+        with:
+          prefix-key: alpine-build-
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
@@ -121,6 +122,8 @@ jobs:
           target: ${{ matrix.target }}
           override: true
       - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: cross-build-${{ matrix.target }}-
       - uses: actions-rs/cargo@v1
         with:
           use-cross: true
@@ -167,6 +170,8 @@ jobs:
           override: true
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: checks-build-
 
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
