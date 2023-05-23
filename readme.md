@@ -93,4 +93,6 @@ Options:
           Print help information
   -V, --version
           Print version information
+      --clear
+          Clear the graph from the terminal after closing the program
 ```

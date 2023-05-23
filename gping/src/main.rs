@@ -3,6 +3,7 @@ use anyhow::{anyhow, Result};
 use chrono::prelude::*;
 use clap::Parser;
 use crossterm::event::KeyModifiers;
+use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::{
     event::{self, Event as CEvent, KeyCode},
     execute,
@@ -115,6 +116,15 @@ struct Args {
         "
     )]
     color_codes_or_names: Vec<String>,
+    #[arg(
+        name = "clear",
+        long = "clear",
+        help = "\
+            Clear the graph from the terminal after closing the program\
+        ",
+        action
+    )]
+    clear: bool,
 }
 
 struct App {
@@ -406,7 +416,16 @@ fn main() -> Result<()> {
     let stdout = io::stdout();
     let mut backend = CrosstermBackend::new(BufWriter::with_capacity(1024 * 1024 * 4, stdout));
     let rect = backend.size()?;
-    execute!(backend, SetSize(rect.width, rect.height),)?;
+
+    if args.clear {
+        execute!(
+            backend,
+            SetSize(rect.width, rect.height),
+            EnterAlternateScreen,
+        )?;
+    } else {
+        execute!(backend, SetSize(rect.width, rect.height),)?;
+    }
 
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
@@ -488,8 +507,7 @@ fn main() -> Result<()> {
                             )
                             .split(*chunk);
 
-                        for (area, paragraph) in
-                            header_layout.into_iter().zip(plot_data.header_stats())
+                        for (area, paragraph) in header_layout.iter().zip(plot_data.header_stats())
                         {
                             f.render_widget(paragraph, *area);
                         }
@@ -535,6 +553,10 @@ fn main() -> Result<()> {
     for thread in threads {
         thread.join().unwrap()?;
     }
+
+    if args.clear {
+        execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    };
 
     Ok(())
 }
