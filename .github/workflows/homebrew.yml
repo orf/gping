@@ -10,8 +10,16 @@ jobs:
     name: Bump Homebrew formula
     runs-on: ubuntu-latest
     steps:
+      - name: Extract version
+        id: extract-version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/gping-}" >> "$GITHUB_OUTPUT"
       - uses: mislav/bump-homebrew-formula-action@v2
         with:
           formula-name: gping
+          commit-message: |
+            gping ${{ steps.extract-version.outputs.VERSION }}
+            
+            Created by https://github.com/mislav/bump-homebrew-formula-action
         env:
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
