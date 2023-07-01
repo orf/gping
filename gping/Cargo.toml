@@ -18,7 +18,7 @@ dns-lookup = "2.0.0"
 chrono = "0.4.26"
 itertools = "0.10.5"
 shadow-rs = "0.23.0"
-const_format = "0.2.30"
+const_format = "0.2.31"
 read_color = "1.0.0"
 clap = { version = "4.3.10", features = ["derive"] }
 
