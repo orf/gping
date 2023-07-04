@@ -10,6 +10,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, SetSize},
 };
 use dns_lookup::lookup_host;
+use itertools::{Itertools, MinMaxResult};
 use pinger::{ping_with_interval, PingResult};
 use std::io;
 use std::io::BufWriter;
@@ -151,13 +152,18 @@ impl App {
         // Find the Y axis bounds for our chart.
         // This is trickier than the x-axis. We iterate through all our PlotData structs
         // and find the min/max of all the values. Then we add a 10% buffer to them.
-        let iter = self
+        let (min, max) = match self
             .data
             .iter()
             .flat_map(|b| b.data.as_slice())
-            .map(|v| v.1);
-        let min = iter.clone().fold(f64::INFINITY, |a, b| a.min(b));
-        let max = iter.fold(0f64, |a, b| a.max(b));
+            .map(|v| v.1)
+            .minmax()
+        {
+            MinMaxResult::NoElements => (0_f64, f64::INFINITY),
+            MinMaxResult::OneElement(elm) => (elm, elm),
+            MinMaxResult::MinMax(min, max) => (min, max),
+        };
+
         // Add a 10% buffer to the top and bottom
         let max_10_percent = (max * 10_f64) / 100_f64;
         let min_10_percent = (min * 10_f64) / 100_f64;
