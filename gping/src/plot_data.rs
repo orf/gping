@@ -52,8 +52,8 @@ impl PlotData {
             .data
             .iter()
             .filter(|(_, x)| !x.is_nan())
-            .sorted_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
             .map(|(_, v)| v)
+            .sorted_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .collect();
         if items.is_empty() {
             return vec![ping_header];
@@ -61,10 +61,13 @@ impl PlotData {
 
         let min = **items.first().unwrap();
         let max = **items.last().unwrap();
-        let avg = items.iter().fold(0f64, |sum, &item| sum + item) / items.len() as f64;
-        let jtr = items.iter().enumerate().fold(0f64, |sum, (idx, &item)| {
-            sum + (*items.get(idx + 1).unwrap_or(&item) - item).abs()
-        }) / (items.len() - 1) as f64;
+        let avg = items.iter().copied().sum::<f64>() / items.len() as f64;
+        let jtr = items
+            .iter()
+            .zip(items.iter().skip(1))
+            .map(|(&prev, &curr)| (curr - prev).abs())
+            .sum::<f64>()
+            / (items.len() - 1) as f64;
 
         let percentile_position = 0.95 * items.len() as f32;
         let rounded_position = percentile_position.round() as usize;
