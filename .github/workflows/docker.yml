@@ -10,8 +10,11 @@
 name: Create and publish a Docker image
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - gping-v*
+    branches:
+      - master
   workflow_dispatch:
 
 env:
