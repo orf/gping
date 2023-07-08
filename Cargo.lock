@@ -308,7 +308,7 @@ dependencies = [
 
 [[package]]
 name = "gping"
-version = "1.12.0"
+version = "1.13.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -560,7 +560,7 @@ checksum = "9b2a4787296e9989611394c33f193f676704af1686e70b8f8033ab5ba9a35a94"
 
 [[package]]
 name = "pinger"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "dns-lookup",
