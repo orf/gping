@@ -34,6 +34,8 @@ where
             // Note: Revisit this section when Ratatui supports patterns such
             // as "light-red". At that point, this replacement operation
             // will be unnecessary and can be removed.
+            //
+            // See https://github.com/tui-rs-revival/ratatui/issues/305
             Some(name) => match Color::from_str(&name.replace('-', " ")) {
                 Ok(color) => {
                     if !self.already_used.contains(&color) {
