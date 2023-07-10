@@ -105,15 +105,16 @@ struct Args {
         long = "color",
         use_value_delimiter = true,
         value_delimiter = ',',
-        help = "\
-            Assign color to a graph entry. This option can be defined more than \
-            once as a comma separated string, and the order which the colors are \
-            provided will be matched against the hosts or commands passed to gping. \
-            Hexadecimal RGB color codes are accepted in the form of '#RRGGBB' or the \
-            following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta',\
-            'cyan', 'gray', 'dark-gray', 'light-red', 'light-green', 'light-yellow', \
-            'light-blue', 'light-magenta', 'light-cyan', and 'white'\
-        "
+        help = r#"Assign color to a graph entry. 
+
+This option can be defined more than once as a comma separated string, and the 
+order which the colors are provided will be matched against the hosts or 
+commands passed to gping.
+
+Hexadecimal RGB color codes are accepted in the form of '#RRGGBB' or the 
+following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta',
+'cyan', 'gray', 'dark-gray', 'light-red', 'light-green', 'light-yellow', 
+'light-blue', 'light-magenta', 'light-cyan', and 'white'"#
     )]
     color_codes_or_names: Vec<String>,
     #[arg(
