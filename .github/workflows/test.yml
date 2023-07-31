@@ -164,12 +164,15 @@ jobs:
       - cross_builds
       - build_and_test
     steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
       - name: Publish
         uses: softprops/action-gh-release@v1
         with:
           draft: false
           files: |
+            gping.1
             **/*.tar.gz
             **/*.zip
         env:
