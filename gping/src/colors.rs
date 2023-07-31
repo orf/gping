@@ -27,7 +27,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.color_names.next() {
-            Some(name) => match Color::from_str(&name) {
+            Some(name) => match Color::from_str(name) {
                 Ok(color) => {
                     if !self.already_used.contains(&color) {
                         self.already_used.push(color);
