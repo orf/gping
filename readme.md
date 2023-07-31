@@ -53,6 +53,10 @@ sudo emerge net-misc/gping::dm9pZCAq
 * FreeBSD:
   * [pkg](https://www.freshports.org/net-mgmt/gping/): `pkg install gping`
   * [ports](https://cgit.freebsd.org/ports/tree/net-mgmt/gping) `cd /usr/ports/net-mgmt/gping; make install clean`
+* Docker:
+```sh
+docker run ghcr.io/orf/gping:gping-v1.14.0 -- --help
+```
 
 # Usage :saxophone:
 
