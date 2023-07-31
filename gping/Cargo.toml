@@ -13,14 +13,13 @@ readme = "../readme.md"
 pinger = { version = "^0.12.1", path = "../pinger" }
 tui = { package = "ratatui", version = "0.22.0", features = ["crossterm"], default_features = false }
 crossterm = "0.26.1"
-anyhow = "1.0.72"
+anyhow = "1.0.69"
 dns-lookup = "2.0.0"
 chrono = "0.4.26"
 itertools = "0.11.0"
 shadow-rs = "0.23.0"
 const_format = "0.2.31"
-read_color = "1.0.0"
-clap = { version = "4.3.19", features = ["derive"] }
+clap = { version = "4.3.11", features = ["derive"] }
 
 [build-dependencies]
 shadow-rs = "0.23.0"
