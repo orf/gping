@@ -35,7 +35,7 @@ Table of Contents
   * Chocolatey: `choco install gping`
   * Download the latest release from [the github releases page](https://github.com/orf/gping/releases)
 * Fedora ([COPR](https://copr.fedorainfracloud.org/coprs/atim/gping/)): `sudo dnf copr enable atim/gping -y && sudo dnf install gping`
-* Cargo (**This requires `rustc` version 1.44.0 or greater**): `cargo install gping`
+* Cargo (**This requires `rustc` version 1.67.0 or greater**): `cargo install gping`
 * Arch Linux: `pacman -S gping`
 * Ubuntu/Debian ([Azlux's repo](http://packages.azlux.fr/)):
 ```bash
