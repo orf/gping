@@ -15,7 +15,7 @@ tui = { package = "ratatui", version = "0.22.0", features = ["crossterm"], defau
 crossterm = "0.27.0"
 anyhow = "1.0.75"
 dns-lookup = "2.0.0"
-chrono = "0.4.30"
+chrono = "0.4.31"
 itertools = "0.11.0"
 shadow-rs = "0.23.0"
 const_format = "0.2.31"
