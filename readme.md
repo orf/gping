@@ -39,8 +39,8 @@ Table of Contents
 * Arch Linux: `pacman -S gping`
 * Ubuntu/Debian ([Azlux's repo](http://packages.azlux.fr/)):
 ```bash
-echo "deb http://packages.azlux.fr/debian/ buster main" | sudo tee /etc/apt/sources.list.d/azlux.list
-wget -qO - https://azlux.fr/repo.gpg.key | sudo apt-key add -
+echo "deb [signed-by=/usr/share/keyrings/azlux-archive-keyring.gpg] http://packages.azlux.fr/debian/ stable main" | sudo tee /etc/apt/sources.list.d/azlux.list
+sudo wget -O /usr/share/keyrings/azlux-archive-keyring.gpg  https://azlux.fr/repo.gpg
 sudo apt update
 sudo apt install gping
 ```
