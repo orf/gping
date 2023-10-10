@@ -9,7 +9,7 @@ repository = "https://github.com/orf/pinger/"
 
 [dependencies]
 anyhow = "1.0.75"
-regex = "1.9.6"
+regex = "1.10.0"
 lazy_static = "1.4.0"
 thiserror = "1.0.49"
 
