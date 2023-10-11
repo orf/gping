@@ -19,7 +19,7 @@ chrono = "0.4.31"
 itertools = "0.11.0"
 shadow-rs = "0.24.1"
 const_format = "0.2.31"
-clap = { version = "4.3.24", features = ["derive"] }
+clap = { version = "4.4.6", features = ["derive"] }
 
 [build-dependencies]
 shadow-rs = "0.24.1"
