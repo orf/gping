@@ -100,3 +100,5 @@ Options:
       --clear
           Clear the graph from the terminal after closing the program
 ```
+
+asdasdasdlkajsdlkajsdlkj
