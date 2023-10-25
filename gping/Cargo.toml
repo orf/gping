@@ -18,7 +18,7 @@ dns-lookup = "2.0.0"
 chrono = "0.4.31"
 itertools = "0.11.0"
 shadow-rs = "0.24.1"
-const_format = "0.2.31"
+const_format = "0.2.32"
 clap = { version = "4.4.7", features = ["derive"] }
 
 [build-dependencies]
