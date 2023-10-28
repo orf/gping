@@ -14,7 +14,7 @@ jobs:
         id: extract-version
         run: |
           echo "VERSION=${GITHUB_REF#refs/tags/gping-}" >> "$GITHUB_OUTPUT"
-      - uses: mislav/bump-homebrew-formula-action@v2
+      - uses: mislav/bump-homebrew-formula-action@v3
         with:
           formula-name: gping
           commit-message: |
