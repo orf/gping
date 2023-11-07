@@ -17,7 +17,7 @@ use crate::linux::{detect_linux_ping, LinuxPingType};
 /// }
 /// ```
 use anyhow::{Context, Result};
-use regex::Regex;
+use lazy_regex::Regex;
 use std::fmt::Formatter;
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, ExitStatus, Stdio};
@@ -26,9 +26,6 @@ use std::time::Duration;
 use std::{fmt, thread};
 use thiserror::Error;
 
-#[macro_use]
-extern crate lazy_static;
-
 pub mod linux;
 // pub mod alpine'
 pub mod macos;
@@ -36,6 +33,7 @@ pub mod macos;
 pub mod windows;
 
 mod bsd;
+mod fake;
 #[cfg(test)]
 mod test;
 
@@ -52,18 +50,19 @@ pub fn run_ping(cmd: &str, args: Vec<String>) -> Result<Child> {
         .with_context(|| format!("Failed to run ping with args {:?}", &args))
 }
 
-pub trait Pinger: Default {
-    fn start<P>(&self, target: String) -> Result<mpsc::Receiver<PingResult>>
-    where
-        P: Parser,
-    {
+pub trait Pinger {
+    type Parser: Parser;
+
+    fn new(interval: Duration, interface: Option<String>) -> Self;
+
+    fn start(&self, target: String) -> Result<mpsc::Receiver<PingResult>> {
         let (tx, rx) = mpsc::channel();
         let (cmd, args) = self.ping_args(target);
         let mut child = run_ping(cmd, args)?;
         let stdout = child.stdout.take().context("child did not have a stdout")?;
 
         thread::spawn(move || {
-            let parser = P::default();
+            let parser = Self::Parser::default();
             let reader = BufReader::new(stdout).lines();
             for line in reader {
                 match line {
@@ -85,23 +84,9 @@ pub trait Pinger: Default {
         Ok(rx)
     }
 
-    fn set_interval(&mut self, interval: Duration);
-
-    fn set_interface(&mut self, interface: Option<String>);
-
     fn ping_args(&self, target: String) -> (&str, Vec<String>) {
         ("ping", vec![target])
     }
-}
-
-// Default empty implementation of a pinger.
-#[derive(Default)]
-pub struct SimplePinger {}
-
-impl Pinger for SimplePinger {
-    fn set_interval(&mut self, _interval: Duration) {}
-
-    fn set_interface(&mut self, _interface: Option<String>) {}
 }
 
 pub trait Parser: Default {
@@ -181,11 +166,17 @@ pub fn ping_with_interval(
     interval: Duration,
     interface: Option<String>,
 ) -> Result<mpsc::Receiver<PingResult>> {
+    if std::env::var("PINGER_FAKE_PING")
+        .map(|e| e == "1")
+        .unwrap_or(false)
+    {
+        let fake = fake::FakePinger::new(interval, interface);
+        return fake.start(addr);
+    }
+
     #[cfg(windows)]
     {
-        let mut p = windows::WindowsPinger::default();
-        p.set_interval(interval);
-        p.set_interface(interface);
+        let p = windows::WindowsPinger::new(interval, interface);
         return p.start::<windows::WindowsParser>(addr);
     }
     #[cfg(unix)]
@@ -195,28 +186,20 @@ pub fn ping_with_interval(
             || cfg!(target_os = "openbsd")
             || cfg!(target_os = "netbsd")
         {
-            let mut p = bsd::BSDPinger::default();
-            p.set_interval(interval);
-            p.set_interface(interface);
-            p.start::<bsd::BSDParser>(addr)
+            let p = bsd::BSDPinger::new(interval, interface);
+            p.start(addr)
         } else if cfg!(target_os = "macos") {
-            let mut p = macos::MacOSPinger::default();
-            p.set_interval(interval);
-            p.set_interface(interface);
-            p.start::<macos::MacOSParser>(addr)
+            let p = macos::MacOSPinger::new(interval, interface);
+            p.start(addr)
         } else {
             match detect_linux_ping() {
                 Ok(LinuxPingType::IPTools) => {
-                    let mut p = linux::LinuxPinger::default();
-                    p.set_interval(interval);
-                    p.set_interface(interface);
-                    p.start::<linux::LinuxParser>(addr)
+                    let p = linux::LinuxPinger::new(interval, interface);
+                    p.start(addr)
                 }
                 Ok(LinuxPingType::BusyBox) => {
-                    let mut p = linux::AlpinePinger::default();
-                    p.set_interval(interval);
-                    p.set_interface(interface);
-                    p.start::<linux::LinuxParser>(addr)
+                    let p = linux::AlpinePinger::new(interval, interface);
+                    p.start(addr)
                 }
                 Err(e) => Err(PingError::UnsupportedPing(e))?,
             }

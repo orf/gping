@@ -1,6 +1,6 @@
 use crate::{run_ping, Parser, PingDetectionError, PingResult, Pinger};
 use anyhow::Context;
-use regex::Regex;
+use lazy_regex::*;
 use std::time::Duration;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -37,19 +37,18 @@ pub fn detect_linux_ping() -> Result<LinuxPingType, PingDetectionError> {
     }
 }
 
-#[derive(Default)]
 pub struct LinuxPinger {
     interval: Duration,
     interface: Option<String>,
 }
 
 impl Pinger for LinuxPinger {
-    fn set_interval(&mut self, interval: Duration) {
-        self.interval = interval;
-    }
-
-    fn set_interface(&mut self, interface: Option<String>) {
-        self.interface = interface;
+    type Parser = LinuxParser;
+    fn new(interval: Duration, interface: Option<String>) -> Self {
+        Self {
+            interval,
+            interface,
+        }
     }
 
     fn ping_args(&self, target: String) -> (&str, Vec<String>) {
@@ -68,27 +67,18 @@ impl Pinger for LinuxPinger {
     }
 }
 
-#[derive(Default)]
-pub struct AlpinePinger {
-    interval: Duration,
-    interface: Option<String>,
-}
+pub struct AlpinePinger {}
 
 // Alpine doesn't support timeout notifications, so we don't add the -O flag here
 impl Pinger for AlpinePinger {
-    fn set_interval(&mut self, interval: Duration) {
-        self.interval = interval;
-    }
+    type Parser = LinuxParser;
 
-    fn set_interface(&mut self, interface: Option<String>) {
-        self.interface = interface;
+    fn new(_interval: Duration, _interface: Option<String>) -> Self {
+        Self {}
     }
 }
 
-lazy_static! {
-    static ref UBUNTU_RE: Regex =
-        Regex::new(r"(?i-u)time=(?P<ms>\d+)(?:\.(?P<ns>\d+))? *ms").unwrap();
-}
+pub static UBUNTU_RE: Lazy<Regex> = lazy_regex!(r"(?i-u)time=(?P<ms>\d+)(?:\.(?P<ns>\d+))? *ms");
 
 #[derive(Default)]
 pub struct LinuxParser {}

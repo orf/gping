@@ -1,24 +1,30 @@
 use crate::{Parser, PingError, PingResult, Pinger};
 use anyhow::Result;
 use dns_lookup::lookup_host;
-use regex::Regex;
+use lazy_regex::*;
 use std::net::IpAddr;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 use winping::{Buffer, Pinger as WinPinger};
 
-lazy_static! {
-    static ref RE: Regex = Regex::new(r"(?ix-u)time=(?P<ms>\d+)(?:\.(?P<ns>\d+))?").unwrap();
-}
+pub static RE: Lazy<Regex> = lazy_regex!(r"(?ix-u)time=(?P<ms>\d+)(?:\.(?P<ns>\d+))?");
 
-#[derive(Default)]
 pub struct WindowsPinger {
     interval: Duration,
     interface: Option<String>,
 }
 
 impl Pinger for WindowsPinger {
+    type Parser = WindowsParser;
+
+    fn new(interval: Duration, interface: Option<String>) -> Self {
+        Self {
+            interval,
+            interface,
+        }
+    }
+
     fn start<P>(&self, target: String) -> Result<mpsc::Receiver<PingResult>>
     where
         P: Parser,
@@ -66,14 +72,6 @@ impl Pinger for WindowsPinger {
         });
 
         Ok(rx)
-    }
-
-    fn set_interval(&mut self, interval: Duration) {
-        self.interval = interval;
-    }
-
-    fn set_interface(&mut self, interface: Option<String>) {
-        self.interface = interface;
     }
 }
 

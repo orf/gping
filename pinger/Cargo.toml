@@ -9,9 +9,9 @@ repository = "https://github.com/orf/pinger/"
 
 [dependencies]
 anyhow = "1.0.75"
-regex = "1.10.2"
-lazy_static = "1.4.0"
 thiserror = "1.0.50"
+rand = "0.8.5"
+lazy-regex = "3.0.2"
 
 [target.'cfg(windows)'.dependencies]
 winping = "0.10.1"
