@@ -177,7 +177,7 @@ pub fn ping_with_interval(
     #[cfg(windows)]
     {
         let p = windows::WindowsPinger::new(interval, interface);
-        return p.start::<windows::WindowsParser>(addr);
+        return p.start(addr);
     }
     #[cfg(unix)]
     {

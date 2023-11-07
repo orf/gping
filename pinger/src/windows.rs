@@ -25,10 +25,7 @@ impl Pinger for WindowsPinger {
         }
     }
 
-    fn start<P>(&self, target: String) -> Result<mpsc::Receiver<PingResult>>
-    where
-        P: Parser,
-    {
+    fn start(&self, target: String) -> Result<mpsc::Receiver<PingResult>> {
         let interval = self.interval;
         let parsed_ip: IpAddr = match target.parse() {
             Err(_) => {
