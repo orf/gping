@@ -487,8 +487,7 @@ fn main() -> Result<()> {
                             iter::repeat(Constraint::Length(1))
                                 .take(app.data.len())
                                 .chain(iter::once(Constraint::Percentage(10)))
-                                .collect::<Vec<_>>()
-                                .as_ref(),
+                                .collect::<Vec<_>>(),
                         )
                         .split(f.size());
 
