@@ -12,16 +12,14 @@ pub static RE: Lazy<Regex> = lazy_regex!(r"(?ix-u)time=(?P<ms>\d+)(?:\.(?P<ns>\d
 
 pub struct WindowsPinger {
     interval: Duration,
-    interface: Option<String>,
 }
 
 impl Pinger for WindowsPinger {
     type Parser = WindowsParser;
 
-    fn new(interval: Duration, interface: Option<String>) -> Self {
+    fn new(interval: Duration, _interface: Option<String>) -> Self {
         Self {
             interval,
-            interface,
         }
     }
 
