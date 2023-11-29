@@ -18,9 +18,7 @@ impl Pinger for WindowsPinger {
     type Parser = WindowsParser;
 
     fn new(interval: Duration, _interface: Option<String>) -> Self {
-        Self {
-            interval,
-        }
+        Self { interval }
     }
 
     fn start(&self, target: String) -> Result<mpsc::Receiver<PingResult>> {
