@@ -55,7 +55,10 @@ sudo emerge net-misc/gping::dm9pZCAq
   * [ports](https://cgit.freebsd.org/ports/tree/net-mgmt/gping) `cd /usr/ports/net-mgmt/gping; make install clean`
 * Docker:
 ```sh
-docker run ghcr.io/orf/gping:gping-v1.14.0 -- --help
+# Check all options
+docker run --rm -ti --network host ghcr.io/orf/gping:gping-v1.15.1 --help
+# Ping google.com
+docker run --rm -ti --network host ghcr.io/orf/gping:gping-v1.15.1 google.com
 ```
 
 # Usage :saxophone:
