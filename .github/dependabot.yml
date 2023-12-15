@@ -9,7 +9,15 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
   - package-ecosystem: "github-actions" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
