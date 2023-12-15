@@ -37,7 +37,7 @@ Table of Contents
 * Fedora ([COPR](https://copr.fedorainfracloud.org/coprs/atim/gping/)): `sudo dnf copr enable atim/gping -y && sudo dnf install gping`
 * Cargo (**This requires `rustc` version 1.67.0 or greater**): `cargo install gping`
 * Arch Linux: `pacman -S gping`
-* Ubuntu/Debian: `apt install gping`
+* Ubuntu >23.10/Debian >13: `apt install gping`
 * Ubuntu/Debian ([Azlux's repo](https://packages.azlux.fr/)):
 ```bash
 echo 'deb [signed-by=/usr/share/keyrings/azlux.gpg] https://packages.azlux.fr/debian/ bookworm main' | sudo tee /etc/apt/sources.list.d/azlux.list
