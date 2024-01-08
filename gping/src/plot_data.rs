@@ -33,16 +33,18 @@ impl PlotData {
             None => self.data.push((idx, f64::NAN)),
         }
         // Find the last index that we should remove.
-        let earliest_timestamp = (now - self.buffer).timestamp_millis() as f64 / 1_000f64;
-        let last_idx = self
-            .data
-            .iter()
-            .enumerate()
-            .filter(|(_, (timestamp, _))| *timestamp < earliest_timestamp)
-            .map(|(idx, _)| idx)
-            .last();
-        if let Some(idx) = last_idx {
-            self.data.drain(0..idx).for_each(drop)
+        if !self.buffer.is_zero() {
+            let earliest_timestamp = (now - self.buffer).timestamp_millis() as f64 / 1_000f64;
+            let last_idx = self
+                .data
+                .iter()
+                .enumerate()
+                .filter(|(_, (timestamp, _))| *timestamp < earliest_timestamp)
+                .map(|(idx, _)| idx)
+                .last();
+            if let Some(idx) = last_idx {
+                self.data.drain(0..idx).for_each(drop)
+            }
         }
     }
 
