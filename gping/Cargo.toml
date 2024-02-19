@@ -13,7 +13,7 @@ readme = "../readme.md"
 pinger = { version = "^1.1.1", path = "../pinger" }
 tui = { package = "ratatui", version = "0.24.0", features = ["crossterm"], default_features = false }
 crossterm = "0.27.0"
-anyhow = "1.0.79"
+anyhow = "1.0.80"
 dns-lookup = "2.0.0"
 chrono = "0.4.34"
 itertools = "0.12.1"
