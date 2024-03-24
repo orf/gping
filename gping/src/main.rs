@@ -189,12 +189,12 @@ impl App {
     }
 
     fn x_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span> {
-        let lower_utc = NaiveDateTime::from_timestamp_opt(bounds[0] as i64, 0)
+        let lower_utc = DateTime::<Utc>::from_timestamp(bounds[0] as i64, 0)
             .expect("Error parsing x-axis bounds 0");
-        let upper_utc = NaiveDateTime::from_timestamp_opt(bounds[1] as i64, 0)
+        let upper_utc = DateTime::<Utc>::from_timestamp(bounds[1] as i64, 0)
             .expect("Error parsing x-asis bounds 1");
-        let lower = Local::from_utc_datetime(&Local, &lower_utc);
-        let upper = Local::from_utc_datetime(&Local, &upper_utc);
+        let lower: DateTime<Local> = DateTime::from(lower_utc);
+        let upper: DateTime<Local> = DateTime::from(upper_utc);
         let diff = (upper - lower) / 2;
         let midpoint = lower + diff;
         vec![

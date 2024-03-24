@@ -1,3 +1,4 @@
+use anyhow::Context;
 use chrono::prelude::*;
 use core::option::Option;
 use core::option::Option::{None, Some};
@@ -19,9 +20,11 @@ impl PlotData {
     pub fn new(display: String, buffer: u64, style: Style, simple_graphics: bool) -> PlotData {
         PlotData {
             display,
-            data: Vec::with_capacity(150), // ringbuffer::FixedRingBuffer::new(capacity),
+            data: Vec::with_capacity(150),
             style,
-            buffer: chrono::Duration::seconds(buffer as i64),
+            buffer: chrono::Duration::try_seconds(buffer as i64)
+                .with_context(|| format!("Error converting {buffer} to seconds"))
+                .unwrap(),
             simple_graphics,
         }
     }
