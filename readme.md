@@ -63,6 +63,11 @@ docker run --rm -ti --network host ghcr.io/orf/gping:gping-v1.15.1 --help
 # Ping google.com
 docker run --rm -ti --network host ghcr.io/orf/gping:gping-v1.15.1 google.com
 ```
+* Flox:
+```sh
+# Inside of a Flox environment
+flox install gping
+```
 
 # Usage :saxophone:
 
