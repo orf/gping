@@ -25,7 +25,7 @@ use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};
 use tui::backend::{Backend, CrosstermBackend};
-use tui::layout::{Constraint, Direction, Layout};
+use tui::layout::{Constraint, Direction, Layout, Flex};
 use tui::style::{Color, Style};
 use tui::text::Span;
 use tui::widgets::{Axis, Block, Borders, Chart, Dataset};
@@ -480,6 +480,7 @@ fn main() -> Result<()> {
             Event::Render => {
                 terminal.draw(|f| {
                     let chunks = Layout::default()
+                        .flex(Flex::Legacy)
                         .direction(Direction::Vertical)
                         .vertical_margin(args.vertical_margin)
                         .horizontal_margin(args.horizontal_margin)
