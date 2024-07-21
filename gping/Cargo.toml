@@ -11,15 +11,15 @@ readme = "../readme.md"
 
 [dependencies]
 pinger = { version = "^1.1.1", path = "../pinger" }
-tui = { package = "ratatui", version = "0.26.0", features = ["crossterm"], default_features = false }
+tui = { package = "ratatui", version = "0.27.0", features = ["crossterm"], default-features = false }
 crossterm = "0.27.0"
 anyhow = "1.0.81"
 dns-lookup = "2.0.0"
 chrono = "0.4.37"
 itertools = "0.13.0"
-shadow-rs = { version = "0.28.0", default_features = false }
+shadow-rs = { version = "0.29.0", default-features = false }
 const_format = "0.2.32"
 clap = { version = "4.5.4", features = ["derive"] }
 
 [build-dependencies]
-shadow-rs = { version = "0.28.0", default_features = false }
+shadow-rs = { version = "0.29.0", default-features = false }
