@@ -25,7 +25,7 @@ use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};
 use tui::backend::{Backend, CrosstermBackend};
-use tui::layout::{Constraint, Direction, Layout, Flex};
+use tui::layout::{Constraint, Direction, Flex, Layout};
 use tui::style::{Color, Style};
 use tui::text::Span;
 use tui::widgets::{Axis, Block, Borders, Chart, Dataset};
