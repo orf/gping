@@ -76,7 +76,7 @@ jobs:
       image: alpine:latest
     steps:
       - uses: actions/checkout@v4
-      - run: apk add --no-cache libgcc gcc musl-dev bash
+      - run: apk add --no-cache libgcc gcc musl-dev bash curl
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
