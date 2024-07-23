@@ -17,9 +17,9 @@ anyhow = "1.0.81"
 dns-lookup = "2.0.0"
 chrono = "0.4.37"
 itertools = "0.13.0"
-shadow-rs = { version = "0.29.0", default-features = false }
+shadow-rs = { version = "0.30.0", default-features = false }
 const_format = "0.2.32"
 clap = { version = "4.5.4", features = ["derive"] }
 
 [build-dependencies]
-shadow-rs = { version = "0.29.0", default-features = false }
+shadow-rs = { version = "0.30.0", default-features = false }
