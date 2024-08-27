@@ -37,6 +37,7 @@ mod region_map;
 
 use colors::Colors;
 use shadow_rs::{formatcp, shadow};
+use tui::prelude::Position;
 
 shadow!(build);
 
@@ -490,7 +491,7 @@ fn main() -> Result<()> {
                                 .chain(iter::once(Constraint::Percentage(10)))
                                 .collect::<Vec<_>>(),
                         )
-                        .split(f.size());
+                        .split(f.area());
 
                     let total_chunks = chunks.len();
 
@@ -557,7 +558,10 @@ fn main() -> Result<()> {
     terminal.show_cursor()?;
 
     let new_size = terminal.size()?;
-    terminal.set_cursor(new_size.width, new_size.height)?;
+    terminal.set_cursor_position(Position {
+        x: new_size.width,
+        y: new_size.height,
+    })?;
     for thread in threads {
         thread.join().unwrap()?;
     }
