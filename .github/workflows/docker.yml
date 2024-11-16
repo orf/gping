@@ -64,7 +64,6 @@ jobs:
             linux/arm64
             linux/amd64
             linux/arm/v7
-            linux/arm
           provenance: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
