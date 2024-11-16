@@ -58,7 +58,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          target: |
+          platforms: |
             linux/arm64
             linux/amd64
             linux/arm/v7
