@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$TARGETPLATFORM rust:slim-bookworm AS builder
+FROM rust:slim-bookworm AS builder
 
 WORKDIR /usr/src/gping
 
@@ -11,7 +11,7 @@ COPY Cargo.* ./
 RUN cargo install --locked --path ./gping 
 
 
-FROM --platform=$TARGETPLATFORM debian:bookworm-slim
+FROM debian:bookworm-slim
 
 RUN apt-get update \
     && apt-get install -y iputils-ping \
