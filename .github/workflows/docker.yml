@@ -21,6 +21,8 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+concurrency: build-docker-image
+
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
@@ -63,5 +65,6 @@ jobs:
             linux/amd64
             linux/arm/v7
             linux/arm
+          provenance: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
