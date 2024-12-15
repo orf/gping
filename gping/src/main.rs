@@ -74,8 +74,8 @@ struct Args {
     #[arg(
         short,
         long,
-        default_value = "30",
-        help = "Determines the number of seconds to display in the graph."
+        default_value = "0",
+        help = "Determines the number of seconds to display in the graph. Pass 0 for an indefinitely scaling buffer that displays the entire history."
     )]
     buffer: u64,
     /// Resolve ping targets to IPv4 address
@@ -177,7 +177,10 @@ impl App {
         let now = Local::now();
         let now_idx;
         let before_idx;
-        if (now - self.started) < self.display_interval {
+        if self.display_interval.is_zero() {
+            now_idx = now.timestamp_millis() as f64 / 1_000f64;
+            before_idx = self.started.timestamp_millis() as f64 / 1_000f64;
+        } else if (now - self.started) < self.display_interval {
             now_idx = (self.started + self.display_interval).timestamp_millis() as f64 / 1_000f64;
             before_idx = self.started.timestamp_millis() as f64 / 1_000f64;
         } else {

@@ -52,8 +52,9 @@ Default for ping is 0.2,
 default for cmd is 0.5.
 .TP
 \f[B]-b\f[R], \f[B]--buffer\f[R] <BUFFER>
-Determines the number of seconds to display in the graph.
-[default: 30]
+Determines the number of seconds to display in the graph. Pass 0 for
+an indefinitely scaling buffer that displays the entire history.
+[default: 0]
 .TP
 \f[B]-4\f[R]
 Resolve ping targets to IPv4 address
