@@ -1,4 +1,4 @@
-use crate::{Parser, PingResult, Pinger};
+use crate::{PingCreationError, PingOptions, PingResult, Pinger};
 use rand::prelude::*;
 use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
@@ -6,22 +6,31 @@ use std::thread;
 use std::time::Duration;
 
 pub struct FakePinger {
-    interval: Duration,
+    options: PingOptions,
 }
 
 impl Pinger for FakePinger {
-    type Parser = FakeParser;
-
-    fn new(interval: Duration, _interface: Option<String>) -> Self {
-        Self { interval }
+    fn from_options(options: PingOptions) -> Result<Self, PingCreationError>
+    where
+        Self: Sized,
+    {
+        Ok(Self { options })
     }
 
-    fn start(&self, _target: String) -> anyhow::Result<Receiver<PingResult>> {
+    fn parse_fn(&self) -> fn(String) -> Option<PingResult> {
+        unimplemented!("parse for FakeParser not implemented")
+    }
+
+    fn ping_args(&self) -> (&str, Vec<String>) {
+        unimplemented!("ping_args not implemented for FakePinger")
+    }
+
+    fn start(&self) -> Result<Receiver<PingResult>, PingCreationError> {
         let (tx, rx) = mpsc::channel();
-        let sleep_time = self.interval;
+        let sleep_time = self.options.interval;
 
         thread::spawn(move || {
-            let mut random = rand::thread_rng();
+            let mut random = thread_rng();
             loop {
                 let fake_seconds = random.gen_range(50..150);
                 let ping_result = PingResult::Pong(
@@ -37,18 +46,5 @@ impl Pinger for FakePinger {
         });
 
         Ok(rx)
-    }
-
-    fn ping_args(&self, _target: String) -> (&str, Vec<String>) {
-        unimplemented!("ping_args not implemented for FakePinger")
-    }
-}
-
-#[derive(Default)]
-pub struct FakeParser {}
-
-impl Parser for FakeParser {
-    fn parse(&self, _line: String) -> Option<PingResult> {
-        unimplemented!("parse for FakeParser not implemented")
     }
 }

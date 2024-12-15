@@ -1,7 +1,7 @@
 use crate::plot_data::PlotData;
 use anyhow::{anyhow, Result};
 use chrono::prelude::*;
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use crossterm::event::KeyModifiers;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::{
@@ -11,12 +11,13 @@ use crossterm::{
 };
 use dns_lookup::lookup_host;
 use itertools::{Itertools, MinMaxResult};
-use pinger::{ping_with_interval, PingResult};
+use pinger::{ping, PingOptions, PingResult};
 use std::io;
 use std::io::BufWriter;
 use std::iter;
 use std::net::IpAddr;
 use std::ops::Add;
+use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
@@ -54,7 +55,7 @@ build_env: {},{}"#,
 );
 
 #[derive(Parser, Debug)]
-#[command(author, name = "gping", about = "Ping, but with a graph.", version = VERSION_INFO)]
+#[command(author, version=build::PKG_VERSION, name = "gping", about = "Ping, but with a graph.", long_version = VERSION_INFO)]
 struct Args {
     #[arg(
         long,
@@ -107,15 +108,15 @@ struct Args {
         long = "color",
         use_value_delimiter = true,
         value_delimiter = ',',
-        help = r#"Assign color to a graph entry. 
+        help = r#"Assign color to a graph entry.
 
-This option can be defined more than once as a comma separated string, and the 
-order which the colors are provided will be matched against the hosts or 
+This option can be defined more than once as a comma separated string, and the
+order which the colors are provided will be matched against the hosts or
 commands passed to gping.
 
-Hexadecimal RGB color codes are accepted in the form of '#RRGGBB' or the 
+Hexadecimal RGB color codes are accepted in the form of '#RRGGBB' or the
 following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta',
-'cyan', 'gray', 'dark-gray', 'light-red', 'light-green', 'light-yellow', 
+'cyan', 'gray', 'dark-gray', 'light-red', 'light-green', 'light-yellow',
 'light-blue', 'light-magenta', 'light-cyan', and 'white'"#
     )]
     color_codes_or_names: Vec<String>,
@@ -310,7 +311,8 @@ fn start_ping_thread(
 ) -> Result<JoinHandle<Result<()>>> {
     let interval = Duration::from_millis((watch_interval.unwrap_or(0.2) * 1000.0) as u64);
     // Pump ping messages into the queue
-    let stream = ping_with_interval(host, interval, interface)?;
+    let ping_opts = PingOptions::new(host, interval, interface);
+    let stream = ping(ping_opts)?;
     Ok(thread::spawn(move || -> Result<()> {
         while !kill_event.load(Ordering::Acquire) {
             match stream.recv() {
@@ -350,7 +352,19 @@ fn get_host_ipaddr(host: &str, force_ipv4: bool, force_ipv6: bool) -> Result<Str
     Ok(ipaddr?.to_string())
 }
 
+fn generate_man_page(path: &Path) -> anyhow::Result<()> {
+    let man = clap_mangen::Man::new(Args::command().version(None).long_version(None));
+    let mut buffer: Vec<u8> = Default::default();
+    man.render(&mut buffer)?;
+
+    std::fs::write(path, buffer)?;
+    Ok(())
+}
+
 fn main() -> Result<()> {
+    if let Some(path) = std::env::var_os("GENERATE_MANPAGE") {
+        return generate_man_page(Path::new(&path));
+    };
     let args: Args = Args::parse();
 
     if args.hosts_or_commands.is_empty() {

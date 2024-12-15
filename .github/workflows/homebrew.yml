@@ -19,7 +19,7 @@ jobs:
           formula-name: gping
           commit-message: |
             gping ${{ steps.extract-version.outputs.VERSION }}
-            
+
             Created by https://github.com/mislav/bump-homebrew-formula-action
         env:
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}

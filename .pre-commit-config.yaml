@@ -1,0 +1,25 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        exclude: 'ping.1'
+  - repo: local
+    hooks:
+      - id: rustfmt
+        name: rustfmt
+        entry: cargo fmt -- --check
+        pass_filenames: false
+        language: system
+      - id: clippy
+        name: clippy
+        entry: cargo clippy --all-targets --all-features -- -D warnings
+        pass_filenames: false
+        language: system
+      - id: mangen
+        name: mangen
+        entry: env GENERATE_MANPAGE="gping.1" cargo run
+        pass_filenames: false
+        language: system

@@ -1,20 +1,27 @@
-[target."armv7-linux-androideabi"]
+#[target."armv7-linux-androideabi"]
+#pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
+#
+#[target."armv7-unknown-linux-gnueabihf"]
+#pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
+#
+#[target."armv7-unknown-linux-musleabihf"]
+#pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
+#
+#[target."aarch64-linux-android"]
+#pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
+#
+#[target."aarch64-unknown-linux-gnu"]
+#pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
+#
+#[target."aarch64-unknown-linux-musl"]
+#pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
+#
+#[target."x86_64-unknown-linux-musl"]
+#pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
+#
+
+[build]
 pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
 
-[target."armv7-unknown-linux-gnueabihf"]
-pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
-
-[target."armv7-unknown-linux-musleabihf"]
-pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
-
-[target."aarch64-linux-android"]
-pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
-
-[target."aarch64-unknown-linux-gnu"]
-pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
-
-[target."aarch64-unknown-linux-musl"]
-pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
-
-[target."x86_64-unknown-linux-musl"]
-pre-build = ["apt-get update && apt-get install --assume-yes iputils-ping"]
+[build.env]
+passthrough = ["CI", "GITHUB_ACTIONS"]
