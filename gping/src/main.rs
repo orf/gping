@@ -522,7 +522,12 @@ fn main() -> Result<()> {
                         }
                     }
 
-                    let datasets: Vec<Dataset> = app.data.iter().map(|d| d.into()).collect();
+                    // TODO: extract the nan datapoints and add them as a second dataset with .style(Style::default().fg(Color::Red));ter(|(_, x)| !x.is_nan()).collect();
+
+                    let datasets: Vec<Dataset> = app.data.iter().flat_map(|d| vec![
+                        d.split_datasets(true),
+                        d.split_datasets(false)
+                    ].into_iter()).collect();
 
                     let y_axis_bounds = app.y_axis_bounds();
                     let x_axis_bounds = app.x_axis_bounds();

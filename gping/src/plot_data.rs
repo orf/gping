@@ -4,9 +4,10 @@ use core::option::Option;
 use core::option::Option::{None, Some};
 use core::time::Duration;
 use itertools::Itertools;
-use tui::style::Style;
+use tui::style::{Color, Style};
 use tui::symbols;
 use tui::widgets::{Dataset, GraphType, Paragraph};
+
 
 pub struct PlotData {
     pub display: String,
@@ -98,6 +99,33 @@ impl PlotData {
             Paragraph::new(format!("t/o {to:?}")).style(self.style),
         ]
     }
+
+    pub fn split_datasets(&self, nan:bool) -> Dataset {
+        let slice = if nan {
+            self.data.iter().filter(|&(_, t)| t.is_nan()).collect::<Vec<_>>()
+        } else {
+            self.data.iter().filter(|&(_, t)| !t.is_nan()).collect::<Vec<_>>()
+        };
+
+        // let slice_ref: &[(_, _)] = if slice.is_empty() {
+        //     &[] // Pass an empty slice if the dataset is empty
+        // } else {
+        //     &slice // Pass the actual dataset reference
+        // };
+        // let owned_data: Vec<(f64, f64)> = slice.into_iter().cloned().collect();
+        
+        Dataset::default()
+            .marker(if self.simple_graphics {
+                symbols::Marker::Dot
+            } else {
+                symbols::Marker::Braille
+            })
+            .style(if !nan {self.style} else {Style::default().fg(Color::Red)})
+            .graph_type(GraphType::Line)
+            .data(slice.iter().map(|&x| *x).collect::<Vec<_>>().as_slice())//slice.iter().cloned().collect::<Vec<_>>())//slice.as_slice())
+    }
+
+
 }
 
 impl<'a> From<&'a PlotData> for Dataset<'a> {
