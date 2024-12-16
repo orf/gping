@@ -1,5 +1,5 @@
 use crate::plot_data::PlotData;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use chrono::prelude::*;
 use clap::{CommandFactory, Parser};
 use crossterm::event::KeyModifiers;
@@ -9,13 +9,12 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, SetSize},
 };
-use dns_lookup::lookup_host;
 use itertools::{Itertools, MinMaxResult};
 use pinger::{ping, PingOptions, PingResult};
 use std::io;
 use std::io::BufWriter;
 use std::iter;
-use std::net::IpAddr;
+use std::net::{IpAddr, ToSocketAddrs};
 use std::ops::Add;
 use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
@@ -321,10 +320,21 @@ fn start_ping_thread(
 }
 
 fn get_host_ipaddr(host: &str, force_ipv4: bool, force_ipv6: bool) -> Result<String> {
-    let ipaddr: Vec<IpAddr> = match lookup_host(host) {
-        Ok(ip) => ip,
-        Err(e) => return Err(anyhow!("Could not resolve hostname {}", host).context(e)),
-    };
+    let mut host = host.to_string();
+    if !host.is_ascii() {
+        let Ok(encoded_host) = idna::domain_to_ascii(&host) else {
+            bail!("Could not encode host {host} to punycode")
+        };
+        host = encoded_host;
+    }
+    let ipaddr: Vec<_> = (host.as_str(), 80)
+        .to_socket_addrs()
+        .with_context(|| format!("Resolving {host}"))?
+        .map(|s| s.ip())
+        .collect();
+    if ipaddr.is_empty() {
+        bail!("Could not resolve hostname {}", host)
+    }
     let ipaddr = if force_ipv4 {
         ipaddr
             .iter()
