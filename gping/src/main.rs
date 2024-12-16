@@ -120,6 +120,7 @@ following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta',
     #[arg(name = "clear", long = "clear", action)]
     clear: bool,
 
+    #[cfg(not(target_os = "windows"))]
     /// Extra arguments to pass to `ping`. These are platform dependent.
     #[arg(long, allow_hyphen_values = true, num_args = 0.., conflicts_with="cmd")]
     ping_args: Option<Vec<String>>,
@@ -397,6 +398,11 @@ fn main() -> Result<()> {
     #[cfg(target_os = "windows")]
     let interface: Option<String> = None;
 
+    #[cfg(not(target_os = "windows"))]
+    let ping_args: Option<Vec<String>> = args.ping_args.clone();
+    #[cfg(target_os = "windows")]
+    let ping_args: Option<Vec<String>> = None;
+
     let (key_tx, rx) = mpsc::channel();
 
     let mut threads = vec![];
@@ -424,7 +430,7 @@ fn main() -> Result<()> {
             } else {
                 PingOptions::new(host_or_cmd, interval, interface.clone())
             };
-            if let Some(ping_args) = &args.ping_args {
+            if let Some(ping_args) = &ping_args {
                 ping_opts = ping_opts.with_raw_arguments(ping_args.clone());
             }
 
