@@ -409,7 +409,14 @@ fn main() -> Result<()> {
         } else {
             let interval =
                 Duration::from_millis((args.watch_interval.unwrap_or(0.2) * 1000.0) as u64);
-            let mut ping_opts = PingOptions::new(host_or_cmd, interval, args.interface.clone());
+
+            let mut ping_opts = if args.ipv4 {
+                PingOptions::new_ipv4(host_or_cmd, interval, args.interface.clone())
+            } else if args.ipv6 {
+                PingOptions::new_ipv6(host_or_cmd, interval, args.interface.clone())
+            } else {
+                PingOptions::new(host_or_cmd, interval, args.interface.clone())
+            };
             if let Some(ping_args) = &args.ping_args {
                 ping_opts = ping_opts.with_raw_arguments(ping_args.clone());
             }
