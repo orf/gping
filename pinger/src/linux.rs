@@ -70,10 +70,14 @@ impl Pinger for LinuxPinger {
                     "ping"
                 };
 
-                let args = vec![
+                let mut args = vec![
                     options.target.to_string(),
                     format!("-i{:.1}", options.interval.as_millis() as f32 / 1_000_f32),
                 ];
+
+                if let Some(raw_args) = &options.raw_arguments {
+                    args.extend(raw_args.iter().cloned());
+                }
 
                 (cmd, args)
             }
@@ -94,6 +98,10 @@ impl Pinger for LinuxPinger {
                     args.push("-I".into());
                     args.push(interface.clone());
                 }
+                if let Some(raw_args) = &options.raw_arguments {
+                    args.extend(raw_args.iter().cloned());
+                }
+
                 args.push(options.target.to_string());
                 (cmd, args)
             }

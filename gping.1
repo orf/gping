@@ -4,7 +4,7 @@
 .SH NAME
 gping \- Ping, but with a graph.
 .SH SYNOPSIS
-\fBgping\fR [\fB\-\-cmd\fR] [\fB\-n\fR|\fB\-\-watch\-interval\fR] [\fB\-b\fR|\fB\-\-buffer\fR] [\fB\-4 \fR] [\fB\-6 \fR] [\fB\-i\fR|\fB\-\-interface\fR] [\fB\-s\fR|\fB\-\-simple\-graphics\fR] [\fB\-\-vertical\-margin\fR] [\fB\-\-horizontal\-margin\fR] [\fB\-c\fR|\fB\-\-color\fR] [\fB\-\-clear\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fIHOSTS_OR_COMMANDS\fR] 
+\fBgping\fR [\fB\-\-cmd\fR] [\fB\-n\fR|\fB\-\-watch\-interval\fR] [\fB\-b\fR|\fB\-\-buffer\fR] [\fB\-4 \fR] [\fB\-6 \fR] [\fB\-i\fR|\fB\-\-interface\fR] [\fB\-s\fR|\fB\-\-simple\-graphics\fR] [\fB\-\-vertical\-margin\fR] [\fB\-\-horizontal\-margin\fR] [\fB\-c\fR|\fB\-\-color\fR] [\fB\-\-clear\fR] [\fB\-\-ping\-args\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fIHOSTS_OR_COMMANDS\fR] 
 .SH DESCRIPTION
 Ping, but with a graph.
 .SH OPTIONS
@@ -13,10 +13,10 @@ Ping, but with a graph.
 Graph the execution time for a list of commands rather than pinging hosts
 .TP
 \fB\-n\fR, \fB\-\-watch\-interval\fR=\fIWATCH_INTERVAL\fR
-Watch interval seconds (provide partial seconds like \*(Aq0.5\*(Aq). Default for ping is 0.2, default for cmd is 0.5.
+Watch interval seconds (provide partial seconds like \*(Aq0.5\*(Aq). Default for ping is 0.2, default for cmd is 0.5
 .TP
 \fB\-b\fR, \fB\-\-buffer\fR=\fIBUFFER\fR [default: 30]
-Determines the number of seconds to display in the graph.
+Determines the number of seconds to display in the graph
 .TP
 \fB\-4\fR
 Resolve ping targets to IPv4 address
@@ -28,7 +28,7 @@ Resolve ping targets to IPv6 address
 Interface to use when pinging
 .TP
 \fB\-s\fR, \fB\-\-simple\-graphics\fR
-Uses dot characters instead of braille
+
 .TP
 \fB\-\-vertical\-margin\fR=\fIVERTICAL_MARGIN\fR [default: 1]
 Vertical margin around the graph (top and bottom)
@@ -51,10 +51,13 @@ following color names: \*(Aqblack\*(Aq, \*(Aqred\*(Aq, \*(Aqgreen\*(Aq, \*(Aqyel
 \fB\-\-clear\fR
 Clear the graph from the terminal after closing the program
 .TP
+\fB\-\-ping\-args\fR=\fIPING_ARGS\fR
+Extra arguments to pass to `ping`. These are platform dependent
+.TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help
 .TP
 [\fIHOSTS_OR_COMMANDS\fR]
-Hosts or IPs to ping, or commands to run if \-\-cmd is provided. Can use cloud shorthands like aws:eu\-west\-1.
+Hosts or IPs to ping, or commands to run if \-\-cmd is provided. Can use cloud shorthands like aws:eu\-west\-1
 .SH AUTHORS
 Tom Forbes <tom@tomforb.es>

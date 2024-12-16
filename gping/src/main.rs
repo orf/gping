@@ -55,29 +55,23 @@ build_env: {},{}"#,
 );
 
 #[derive(Parser, Debug)]
-#[command(author, version=build::PKG_VERSION, name = "gping", about = "Ping, but with a graph.", long_version = VERSION_INFO)]
+#[command(author, version=build::PKG_VERSION, name = "gping", about = "Ping, but with a graph.", long_version = VERSION_INFO
+)]
 struct Args {
-    #[arg(
-        long,
-        help = "Graph the execution time for a list of commands rather than pinging hosts"
-    )]
+    /// Graph the execution time for a list of commands rather than pinging hosts
+    #[arg(long)]
     cmd: bool,
-    #[arg(
-        short = 'n',
-        long,
-        help = "Watch interval seconds (provide partial seconds like '0.5'). Default for ping is 0.2, default for cmd is 0.5."
-    )]
+
+    /// Watch interval seconds (provide partial seconds like '0.5'). Default for ping is 0.2, default for cmd is 0.5.
+    #[arg(short = 'n', long)]
     watch_interval: Option<f32>,
-    #[arg(
-        help = "Hosts or IPs to ping, or commands to run if --cmd is provided. Can use cloud shorthands like aws:eu-west-1."
-    )]
+
+    /// Hosts or IPs to ping, or commands to run if --cmd is provided. Can use cloud shorthands like aws:eu-west-1.
+    #[arg(allow_hyphen_values = false)]
     hosts_or_commands: Vec<String>,
-    #[arg(
-        short,
-        long,
-        default_value = "30",
-        help = "Determines the number of seconds to display in the graph."
-    )]
+
+    /// Determines the number of seconds to display in the graph.
+    #[arg(short, long, default_value = "30")]
     buffer: u64,
     /// Resolve ping targets to IPv4 address
     #[arg(short = '4', conflicts_with = "ipv6")]
@@ -88,20 +82,19 @@ struct Args {
     /// Interface to use when pinging.
     #[arg(short = 'i', long)]
     interface: Option<String>,
-    #[arg(short = 's', long, help = "Uses dot characters instead of braille")]
+
+    /// Uses dot characters instead of braille
+    #[arg(short = 's', long, help = "")]
     simple_graphics: bool,
-    #[arg(
-        long,
-        help = "Vertical margin around the graph (top and bottom)",
-        default_value = "1"
-    )]
+
+    /// Vertical margin around the graph (top and bottom)
+    #[arg(long, default_value = "1")]
     vertical_margin: u16,
-    #[arg(
-        long,
-        help = "Horizontal margin around the graph (left and right)",
-        default_value = "0"
-    )]
+
+    /// Horizontal margin around the graph (left and right)
+    #[arg(long, default_value = "0")]
     horizontal_margin: u16,
+
     #[arg(
         name = "color",
         short = 'c',
@@ -120,15 +113,14 @@ following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta',
 'light-blue', 'light-magenta', 'light-cyan', and 'white'"#
     )]
     color_codes_or_names: Vec<String>,
-    #[arg(
-        name = "clear",
-        long = "clear",
-        help = "\
-            Clear the graph from the terminal after closing the program\
-        ",
-        action
-    )]
+
+    /// Clear the graph from the terminal after closing the program
+    #[arg(name = "clear", long = "clear", action)]
     clear: bool,
+
+    /// Extra arguments to pass to `ping`. These are platform dependent.
+    #[arg(long, allow_hyphen_values = true, num_args = 0.., conflicts_with="cmd")]
+    ping_args: Option<Vec<String>>,
 }
 
 struct App {
@@ -302,17 +294,13 @@ fn start_cmd_thread(
 }
 
 fn start_ping_thread(
-    host: String,
+    options: PingOptions,
     host_id: usize,
-    watch_interval: Option<f32>,
     ping_tx: Sender<Event>,
     kill_event: Arc<AtomicBool>,
-    interface: Option<String>,
 ) -> Result<JoinHandle<Result<()>>> {
-    let interval = Duration::from_millis((watch_interval.unwrap_or(0.2) * 1000.0) as u64);
+    let stream = ping(options)?;
     // Pump ping messages into the queue
-    let ping_opts = PingOptions::new(host, interval, interface);
-    let stream = ping(ping_opts)?;
     Ok(thread::spawn(move || -> Result<()> {
         while !kill_event.load(Ordering::Acquire) {
             match stream.recv() {
@@ -419,13 +407,18 @@ fn main() -> Result<()> {
             );
             threads.push(cmd_thread);
         } else {
+            let interval =
+                Duration::from_millis((args.watch_interval.unwrap_or(0.2) * 1000.0) as u64);
+            let mut ping_opts = PingOptions::new(host_or_cmd, interval, args.interface.clone());
+            if let Some(ping_args) = &args.ping_args {
+                ping_opts = ping_opts.with_raw_arguments(ping_args.clone());
+            }
+
             threads.push(start_ping_thread(
-                host_or_cmd,
+                ping_opts,
                 host_id,
-                args.watch_interval,
                 key_tx.clone(),
                 std::sync::Arc::clone(&killed),
-                args.interface.clone(),
             )?);
         }
     }

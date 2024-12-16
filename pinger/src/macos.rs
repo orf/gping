@@ -38,6 +38,10 @@ impl Pinger for MacOSPinger {
             args.push(interface.clone());
         }
 
+        if let Some(raw_args) = &self.options.raw_arguments {
+            args.extend(raw_args.iter().cloned());
+        }
+
         (cmd, args)
     }
 }
