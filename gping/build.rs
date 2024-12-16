@@ -1,3 +1,3 @@
-fn main() -> shadow_rs::SdResult<()> {
-    shadow_rs::new()
+fn main() {
+    shadow_rs::ShadowBuilder::builder().build().unwrap();
 }

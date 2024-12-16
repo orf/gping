@@ -1,12 +1,13 @@
 #[cfg(unix)]
-use crate::linux::{detect_linux_ping, LinuxPingType};
+use crate::linux::LinuxPinger;
 /// Pinger
 /// This crate exposes a simple function to ping remote hosts across different operating systems.
 /// Example:
 /// ```no_run
-/// use pinger::{ping, PingResult};
-///
-/// let stream = ping("tomforb.es".to_string(), None).expect("Error pinging");
+/// use std::time::Duration;
+/// use pinger::{ping, PingResult, PingOptions};
+/// let options = PingOptions::new("tomforb.es".to_string(), Duration::from_secs(1), None);
+/// let stream = ping(options).expect("Error pinging");
 /// for message in stream {
 ///     match message {
 ///         PingResult::Pong(duration, line) => println!("{:?} (line: {})", duration, line),
@@ -16,29 +17,62 @@ use crate::linux::{detect_linux_ping, LinuxPingType};
 ///     }
 /// }
 /// ```
-use anyhow::{Context, Result};
 use lazy_regex::Regex;
-use std::fmt::Formatter;
+use std::ffi::OsStr;
+use std::fmt::{Debug, Formatter};
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, ExitStatus, Stdio};
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 use std::time::Duration;
-use std::{fmt, thread};
+use std::{fmt, io, thread};
+use target::Target;
 use thiserror::Error;
 
 pub mod linux;
-// pub mod alpine'
 pub mod macos;
 #[cfg(windows)]
 pub mod windows;
 
 mod bsd;
+#[cfg(feature = "fake-ping")]
 mod fake;
+mod target;
 #[cfg(test)]
 mod test;
 
-pub fn run_ping(cmd: &str, args: Vec<String>) -> Result<Child> {
-    Command::new(cmd)
+#[derive(Debug, Clone)]
+pub struct PingOptions {
+    pub target: Target,
+    pub interval: Duration,
+    pub interface: Option<String>,
+}
+
+impl PingOptions {
+    pub fn from_target(target: Target, interval: Duration, interface: Option<String>) -> Self {
+        Self {
+            target,
+            interval,
+            interface,
+        }
+    }
+    pub fn new(target: impl ToString, interval: Duration, interface: Option<String>) -> Self {
+        Self::from_target(Target::new_any(target), interval, interface)
+    }
+
+    pub fn new_ipv4(target: impl ToString, interval: Duration, interface: Option<String>) -> Self {
+        Self::from_target(Target::new_ipv4(target), interval, interface)
+    }
+
+    pub fn new_ipv6(target: impl ToString, interval: Duration, interface: Option<String>) -> Self {
+        Self::from_target(Target::new_ipv6(target), interval, interface)
+    }
+}
+
+pub fn run_ping(
+    cmd: impl AsRef<OsStr> + Debug,
+    args: Vec<impl AsRef<OsStr> + Debug>,
+) -> Result<Child, PingCreationError> {
+    Ok(Command::new(cmd.as_ref())
         .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -46,28 +80,53 @@ pub fn run_ping(cmd: &str, args: Vec<String>) -> Result<Child> {
         // using locale specific delimiters.
         .env("LANG", "C")
         .env("LC_ALL", "C")
-        .spawn()
-        .with_context(|| format!("Failed to run ping with args {:?}", &args))
+        .spawn()?)
 }
 
-pub trait Pinger {
-    type Parser: Parser;
+pub(crate) fn extract_regex(regex: &Regex, line: String) -> Option<PingResult> {
+    let cap = regex.captures(&line)?;
+    let ms = cap
+        .name("ms")
+        .expect("No capture group named 'ms'")
+        .as_str()
+        .parse::<u64>()
+        .ok()?;
+    let ns = match cap.name("ns") {
+        None => 0,
+        Some(cap) => {
+            let matched_str = cap.as_str();
+            let number_of_digits = matched_str.len() as u32;
+            let fractional_ms = matched_str.parse::<u64>().ok()?;
+            fractional_ms * (10u64.pow(6 - number_of_digits))
+        }
+    };
+    let duration = Duration::from_millis(ms) + Duration::from_nanos(ns);
+    Some(PingResult::Pong(duration, line))
+}
 
-    fn new(interval: Duration, interface: Option<String>) -> Self;
+pub trait Pinger: Send + Sync {
+    fn from_options(options: PingOptions) -> std::result::Result<Self, PingCreationError>
+    where
+        Self: Sized;
 
-    fn start(&self, target: String) -> Result<mpsc::Receiver<PingResult>> {
+    fn parse_fn(&self) -> fn(String) -> Option<PingResult>;
+
+    fn ping_args(&self) -> (&str, Vec<String>);
+
+    fn start(&self) -> Result<mpsc::Receiver<PingResult>, PingCreationError> {
         let (tx, rx) = mpsc::channel();
-        let (cmd, args) = self.ping_args(target);
+        let (cmd, args) = self.ping_args();
         let mut child = run_ping(cmd, args)?;
-        let stdout = child.stdout.take().context("child did not have a stdout")?;
+        let stdout = child.stdout.take().expect("child did not have a stdout");
+
+        let parse_fn = self.parse_fn();
 
         thread::spawn(move || {
-            let parser = Self::Parser::default();
             let reader = BufReader::new(stdout).lines();
             for line in reader {
                 match line {
                     Ok(msg) => {
-                        if let Some(result) = parser.parse(msg) {
+                        if let Some(result) = parse_fn(msg) {
                             if tx.send(result).is_err() {
                                 break;
                             }
@@ -82,35 +141,6 @@ pub trait Pinger {
         });
 
         Ok(rx)
-    }
-
-    fn ping_args(&self, target: String) -> (&str, Vec<String>) {
-        ("ping", vec![target])
-    }
-}
-
-pub trait Parser: Default {
-    fn parse(&self, line: String) -> Option<PingResult>;
-
-    fn extract_regex(&self, regex: &Regex, line: String) -> Option<PingResult> {
-        let cap = regex.captures(&line)?;
-        let ms = cap
-            .name("ms")
-            .expect("No capture group named 'ms'")
-            .as_str()
-            .parse::<u64>()
-            .ok()?;
-        let ns = match cap.name("ns") {
-            None => 0,
-            Some(cap) => {
-                let matched_str = cap.as_str();
-                let number_of_digits = matched_str.len() as u32;
-                let fractional_ms = matched_str.parse::<u64>().ok()?;
-                fractional_ms * (10u64.pow(6 - number_of_digits))
-            }
-        };
-        let duration = Duration::from_millis(ms) + Duration::from_nanos(ns);
-        Some(PingResult::Pong(duration, line))
     }
 }
 
@@ -134,50 +164,34 @@ impl fmt::Display for PingResult {
 }
 
 #[derive(Error, Debug)]
-pub enum PingDetectionError {
+pub enum PingCreationError {
     #[error("Could not detect ping. Stderr: {stderr:?}\nStdout: {stdout:?}")]
     UnknownPing {
         stderr: Vec<String>,
         stdout: Vec<String>,
     },
-    #[error(transparent)]
-    CommandError(#[from] anyhow::Error),
+    #[error("Error spawning ping: {0}")]
+    SpawnError(#[from] io::Error),
 
     #[error("Installed ping is not supported: {alternative}")]
     NotSupported { alternative: String },
-}
 
-#[derive(Error, Debug)]
-pub enum PingError {
-    #[error("Could not detect ping command type")]
-    UnsupportedPing(#[from] PingDetectionError),
     #[error("Invalid or unresolvable hostname {0}")]
     HostnameError(String),
 }
 
-/// Start pinging a an address. The address can be either a hostname or an IP address.
-pub fn ping(addr: String, interface: Option<String>) -> Result<mpsc::Receiver<PingResult>> {
-    ping_with_interval(addr, Duration::from_millis(200), interface)
-}
-
-/// Start pinging a an address. The address can be either a hostname or an IP address.
-pub fn ping_with_interval(
-    addr: String,
-    interval: Duration,
-    interface: Option<String>,
-) -> Result<mpsc::Receiver<PingResult>> {
+pub fn get_pinger(options: PingOptions) -> std::result::Result<Arc<dyn Pinger>, PingCreationError> {
+    #[cfg(feature = "fake-ping")]
     if std::env::var("PINGER_FAKE_PING")
         .map(|e| e == "1")
-        .unwrap_or(false)
+        .unwrap_or_default()
     {
-        let fake = fake::FakePinger::new(interval, interface);
-        return fake.start(addr);
+        return Ok(Arc::new(fake::FakePinger::from_options(options)?));
     }
 
     #[cfg(windows)]
     {
-        let p = windows::WindowsPinger::new(interval, interface);
-        return p.start(addr);
+        return Ok(Arc::new(windows::WindowsPinger::from_options(options)?));
     }
     #[cfg(unix)]
     {
@@ -186,23 +200,19 @@ pub fn ping_with_interval(
             || cfg!(target_os = "openbsd")
             || cfg!(target_os = "netbsd")
         {
-            let p = bsd::BSDPinger::new(interval, interface);
-            p.start(addr)
+            Ok(Arc::new(bsd::BSDPinger::from_options(options)?))
         } else if cfg!(target_os = "macos") {
-            let p = macos::MacOSPinger::new(interval, interface);
-            p.start(addr)
+            Ok(Arc::new(macos::MacOSPinger::from_options(options)?))
         } else {
-            match detect_linux_ping() {
-                Ok(LinuxPingType::IPTools) => {
-                    let p = linux::LinuxPinger::new(interval, interface);
-                    p.start(addr)
-                }
-                Ok(LinuxPingType::BusyBox) => {
-                    let p = linux::AlpinePinger::new(interval, interface);
-                    p.start(addr)
-                }
-                Err(e) => Err(PingError::UnsupportedPing(e))?,
-            }
+            Ok(Arc::new(LinuxPinger::from_options(options)?))
         }
     }
+}
+
+/// Start pinging a an address. The address can be either a hostname or an IP address.
+pub fn ping(
+    options: PingOptions,
+) -> std::result::Result<mpsc::Receiver<PingResult>, PingCreationError> {
+    let pinger = get_pinger(options)?;
+    pinger.start()
 }

@@ -20,6 +20,7 @@ itertools = "0.13.0"
 shadow-rs = { version = "0.37.0", default-features = false }
 const_format = "0.2.34"
 clap = { version = "4.5.23", features = ["derive"] }
+clap_mangen = "0.2.24"
 
 [build-dependencies]
 shadow-rs = { version = "0.37.0", default-features = false }

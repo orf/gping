@@ -1,22 +1,92 @@
 #[cfg(test)]
 mod tests {
-    use crate::bsd::BSDParser;
-    use crate::linux::LinuxParser;
-    use crate::macos::MacOSParser;
-    use crate::{Parser, PingResult};
-
+    use crate::bsd::BSDPinger;
+    use crate::linux::LinuxPinger;
+    use crate::macos::MacOSPinger;
     #[cfg(windows)]
-    use crate::windows::WindowsParser;
+    use crate::windows::WindowsPinger;
+    use crate::{PingOptions, PingResult, Pinger};
+    use anyhow::bail;
+    use ntest::timeout;
+    use std::time::Duration;
 
-    fn test_parser<T>(contents: &str)
-    where
-        T: Parser,
-    {
-        let parser = T::default();
+    const IS_GHA: bool = option_env!("GITHUB_ACTIONS").is_some();
+
+    #[test]
+    #[timeout(20_000)]
+    fn test_integration_any() {
+        run_integration_test(PingOptions::new(
+            "tomforb.es",
+            Duration::from_millis(500),
+            None,
+        ))
+        .unwrap();
+    }
+    #[test]
+    #[timeout(20_000)]
+    fn test_integration_ipv4() {
+        run_integration_test(PingOptions::new_ipv4(
+            "tomforb.es",
+            Duration::from_millis(500),
+            None,
+        ))
+        .unwrap();
+    }
+    #[test]
+    #[timeout(20_000)]
+    fn test_integration_ip6() {
+        let res = run_integration_test(PingOptions::new_ipv6(
+            "tomforb.es",
+            Duration::from_millis(500),
+            None,
+        ));
+        // ipv6 tests are allowed to fail on Gitlab CI, as it doesn't support ipv6, apparently.
+        if !IS_GHA {
+            res.unwrap();
+        }
+    }
+
+    fn run_integration_test(options: PingOptions) -> anyhow::Result<()> {
+        let stream = crate::ping(options.clone())?;
+
+        let mut success = 0;
+        let mut errors = 0;
+
+        for message in stream.into_iter().take(3) {
+            match message {
+                PingResult::Pong(_, m) | PingResult::Timeout(m) => {
+                    eprintln!("Message: {}", m);
+                    success += 1;
+                }
+                PingResult::Unknown(line) => {
+                    eprintln!("Unknown line: {}", line);
+                    errors += 1;
+                }
+                PingResult::PingExited(code, stderr) => {
+                    bail!("Ping exited with code: {}, stderr: {}", code, stderr);
+                }
+            }
+        }
+        assert_eq!(success, 3, "Success != 3 with opts {options:?}");
+        assert_eq!(errors, 0, "Errors != 0 with opts {options:?}");
+        Ok(())
+    }
+
+    fn opts() -> PingOptions {
+        PingOptions::new("foo".to_string(), Duration::from_secs(1), None)
+    }
+
+    fn test_parser<T: Pinger>(contents: &str) {
+        let pinger = T::from_options(opts()).unwrap();
+        run_parser_test(contents, &pinger);
+    }
+
+    fn run_parser_test(contents: &str, pinger: &impl Pinger) {
+        let parser = pinger.parse_fn();
         let test_file: Vec<&str> = contents.split("-----").collect();
         let input = test_file[0].trim().split('\n');
         let expected: Vec<&str> = test_file[1].trim().split('\n').collect();
-        let parsed: Vec<Option<PingResult>> = input.map(|l| parser.parse(l.to_string())).collect();
+        let parsed: Vec<Option<PingResult>> = input.map(|l| parser(l.to_string())).collect();
 
         assert_eq!(
             parsed.len(),
@@ -41,52 +111,64 @@ mod tests {
 
     #[test]
     fn macos() {
-        test_parser::<MacOSParser>(include_str!("tests/macos.txt"));
+        test_parser::<MacOSPinger>(include_str!("tests/macos.txt"));
     }
 
     #[test]
     fn freebsd() {
-        test_parser::<BSDParser>(include_str!("tests/bsd.txt"));
+        test_parser::<BSDPinger>(include_str!("tests/bsd.txt"));
     }
 
     #[test]
     fn dragonfly() {
-        test_parser::<BSDParser>(include_str!("tests/bsd.txt"));
+        test_parser::<BSDPinger>(include_str!("tests/bsd.txt"));
     }
 
     #[test]
     fn openbsd() {
-        test_parser::<BSDParser>(include_str!("tests/bsd.txt"));
+        test_parser::<BSDPinger>(include_str!("tests/bsd.txt"));
     }
 
     #[test]
     fn netbsd() {
-        test_parser::<BSDParser>(include_str!("tests/bsd.txt"));
+        test_parser::<BSDPinger>(include_str!("tests/bsd.txt"));
     }
 
     #[test]
     fn ubuntu() {
-        test_parser::<LinuxParser>(include_str!("tests/ubuntu.txt"));
+        run_parser_test(
+            include_str!("tests/ubuntu.txt"),
+            &LinuxPinger::IPTools(opts()),
+        );
     }
 
     #[test]
     fn debian() {
-        test_parser::<LinuxParser>(include_str!("tests/debian.txt"));
+        run_parser_test(
+            include_str!("tests/debian.txt"),
+            &LinuxPinger::IPTools(opts()),
+        );
     }
 
     #[cfg(windows)]
     #[test]
     fn windows() {
-        test_parser::<WindowsParser>(include_str!("tests/windows.txt"));
+        test_parser::<WindowsPinger>(include_str!("tests/windows.txt"));
     }
 
     #[test]
     fn android() {
-        test_parser::<LinuxParser>(include_str!("tests/android.txt"));
+        run_parser_test(
+            include_str!("tests/android.txt"),
+            &LinuxPinger::BusyBox(opts()),
+        );
     }
 
     #[test]
     fn alpine() {
-        test_parser::<LinuxParser>(include_str!("tests/alpine.txt"));
+        run_parser_test(
+            include_str!("tests/alpine.txt"),
+            &LinuxPinger::BusyBox(opts()),
+        );
     }
 }

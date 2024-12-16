@@ -10,151 +10,88 @@ on:
 name: CI
 
 jobs:
-  build_and_test:
-    name: Rust project
-    runs-on: ${{ matrix.os }}
-    container: ${{ matrix.container }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
-        include:
-          - os: ubuntu-latest
-            bin: gping
-            name: gping-Linux-x86_64.tar.gz
-            container: quay.io/pypa/manylinux_2_28_x86_64
-          - os: macOS-latest
-            bin: gping
-            name: gping-Darwin-x86_64.tar.gz
-            container: null
-          - os: windows-latest
-            bin: gping.exe
-            name: gping-Windows-x86_64.zip
-            container: null
-    env:
-      RUST_BACKTRACE: "1"
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: standard-build-${{ matrix.os }}-
-
-      - name: Run tests
-        run: cargo test
-
-      - name: Run
-        run: cargo run -- --help
-
-      - name: Build release
-        if: startsWith(github.ref, 'refs/tags/')
-        run: cargo build --release
-      - name: Package
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: bash
-        run: |
-          strip target/release/${{ matrix.bin }}
-          cd target/release
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]
-          then
-          7z a ../../${{ matrix.name }} ${{ matrix.bin }}
-          else
-          tar czvf ../../${{ matrix.name }} ${{ matrix.bin }}
-          fi
-          cd -
-      - name: Archive binaries
-        uses: actions/upload-artifact@v4
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          name: build-${{ matrix.name }}
-          path: ${{ matrix.name }}
-
-  test_alpine:
-    name: Test in Alpine
-    runs-on: ubuntu-latest
-    container:
-      image: alpine:latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: apk add --no-cache libgcc gcc musl-dev bash curl
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: alpine-build-
-      - name: Run tests
-        run: cargo test
-
   cross_builds:
-    name: Cross-build
-    runs-on: ubuntu-latest
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+        os: [ 'ubuntu-24.04' ]
         target:
           - armv7-linux-androideabi
           - armv7-unknown-linux-gnueabihf
           - armv7-unknown-linux-musleabihf
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
           - aarch64-unknown-linux-gnu
           - aarch64-unknown-linux-musl
-          - x86_64-unknown-linux-musl
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          target: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: cross-build-${{ matrix.target }}-
 
-      - name: Check
-        uses: houseabsolute/actions-rust-cross@v0
+      - name: Install Rust
+        id: rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          command: check
+          cache: 'false'
+          cache-on-failure: false
           target: ${{ matrix.target }}
+
+      - name: Setup Rust Caching
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: false
+          prefix-key: ${{ matrix.target }}
+          key: ${{ steps.rust.outputs.cachekey }}
 
       - name: Test
         uses: houseabsolute/actions-rust-cross@v0
         with:
           command: test
           target: ${{ matrix.target }}
+          args: --locked
 
-      - uses: houseabsolute/actions-rust-cross@v0
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Sanity check
+        if: matrix.target == 'x86_64-unknown-linux-gnu' || matrix.target == 'aarch64-apple-darwin' || matrix.target == 'x86_64-pc-windows-msvc'
+        run: cargo run --target ${{ matrix.target }} -- --help
+
+      - name: Build release
+        uses: houseabsolute/actions-rust-cross@v0
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
           command: build
           target: ${{ matrix.target }}
-          args: --release
-      - name: Package
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: bash
-        run: |
-          cd target/${{ matrix.target }}/release/
-          tar czvf ../../../gping-${{ matrix.target }}.tar.gz gping
-          cd -
-      - name: Archive production artifacts
-        uses: actions/upload-artifact@v4
-        if: startsWith(github.ref, 'refs/tags/')
+          args: --release --locked
+
+      - name: Publish artifacts and release
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        uses: houseabsolute/actions-rust-release@v0
         with:
-          name: build-${{ matrix.target }}
-          path: |
-            gping*.tar.gz
-            gping*.zip
+          executable-name: gping
+          target: ${{ matrix.target }}
+          extra-files: gping.1
 
   create_release:
     name: Release
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     needs:
       - cross_builds
-      - build_and_test
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
       - name: Publish
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           draft: false
@@ -167,26 +104,30 @@ jobs:
 
   checks:
     name: Checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
         with:
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: checks-build-
+          python-version: '3.11'
 
-      - name: Run cargo fmt
-        if: success() || failure()
-        run: cargo fmt --all -- --check
+      - name: Install stable toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-on-failure: false
+          components: rustfmt,clippy
+
+      - name: Rustfmt Check
+        uses: actions-rust-lang/rustfmt@v1
 
       - name: Run cargo check
         if: success() || failure()
         run: cargo check
 
       - if: success() || failure()
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+
+      - if: success() || failure()
+        uses: pre-commit/action@v3.0.1

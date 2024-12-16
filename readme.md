@@ -30,7 +30,7 @@ Table of Contents
   * [MacPorts](https://ports.macports.org/port/gping/): `sudo port install gping`
 * Linux (Homebrew): `brew install gping`
 * CentOS (and other distributions with an old glibc): Download the MUSL build from the latest release
-* Windows/ARM: 
+* Windows/ARM:
   * Scoop: `scoop install gping`
   * Chocolatey: `choco install gping`
   * Download the latest release from [the github releases page](https://github.com/orf/gping/releases)
@@ -71,7 +71,7 @@ flox install gping
 
 # Usage :saxophone:
 
-Just run `gping [host]`. `host` can be a command like `curl google.com` if the `--cmd` flag is used. You can also use 
+Just run `gping [host]`. `host` can be a command like `curl google.com` if the `--cmd` flag is used. You can also use
 shorthands like `aws:eu-west-1` or `aws:ca-central-1` to ping specific cloud regions. Only `aws` is currently supported.
 
 ```bash
