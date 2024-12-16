@@ -79,6 +79,8 @@ struct Args {
     /// Resolve ping targets to IPv6 address
     #[arg(short = '6', conflicts_with = "ipv4")]
     ipv6: bool,
+
+    #[cfg(not(target_os = "windows"))]
     /// Interface to use when pinging.
     #[arg(short = 'i', long)]
     interface: Option<String>,
@@ -390,6 +392,11 @@ fn main() -> Result<()> {
         ));
     }
 
+    #[cfg(not(target_os = "windows"))]
+    let interface: Option<String> = args.interface.clone();
+    #[cfg(target_os = "windows")]
+    let interface: Option<String> = None;
+
     let (key_tx, rx) = mpsc::channel();
 
     let mut threads = vec![];
@@ -411,11 +418,11 @@ fn main() -> Result<()> {
                 Duration::from_millis((args.watch_interval.unwrap_or(0.2) * 1000.0) as u64);
 
             let mut ping_opts = if args.ipv4 {
-                PingOptions::new_ipv4(host_or_cmd, interval, args.interface.clone())
+                PingOptions::new_ipv4(host_or_cmd, interval, interface.clone())
             } else if args.ipv6 {
-                PingOptions::new_ipv6(host_or_cmd, interval, args.interface.clone())
+                PingOptions::new_ipv6(host_or_cmd, interval, interface.clone())
             } else {
-                PingOptions::new(host_or_cmd, interval, args.interface.clone())
+                PingOptions::new(host_or_cmd, interval, interface.clone())
             };
             if let Some(ping_args) = &args.ping_args {
                 ping_opts = ping_opts.with_raw_arguments(ping_args.clone());
