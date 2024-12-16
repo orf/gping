@@ -38,6 +38,9 @@ impl Pinger for BSDPinger {
             args.push("-I".into());
             args.push(interface.clone());
         }
+        if let Some(raw_args) = &self.options.raw_arguments {
+            args.extend(raw_args.iter().cloned());
+        }
         args.push(self.options.target.to_string());
         ("ping", args)
     }

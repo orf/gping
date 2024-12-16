@@ -45,6 +45,19 @@ pub struct PingOptions {
     pub target: Target,
     pub interval: Duration,
     pub interface: Option<String>,
+    pub raw_arguments: Option<Vec<String>>,
+}
+
+impl PingOptions {
+    pub fn with_raw_arguments(mut self, raw_arguments: Vec<impl ToString>) -> Self {
+        self.raw_arguments = Some(
+            raw_arguments
+                .into_iter()
+                .map(|item| item.to_string())
+                .collect(),
+        );
+        self
+    }
 }
 
 impl PingOptions {
@@ -53,6 +66,7 @@ impl PingOptions {
             target,
             interval,
             interface,
+            raw_arguments: None,
         }
     }
     pub fn new(target: impl ToString, interval: Duration, interface: Option<String>) -> Self {
@@ -116,6 +130,7 @@ pub trait Pinger: Send + Sync {
     fn start(&self) -> Result<mpsc::Receiver<PingResult>, PingCreationError> {
         let (tx, rx) = mpsc::channel();
         let (cmd, args) = self.ping_args();
+
         let mut child = run_ping(cmd, args)?;
         let stdout = child.stdout.take().expect("child did not have a stdout");
 
