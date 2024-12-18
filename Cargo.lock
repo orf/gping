@@ -384,7 +384,7 @@ dependencies = [
 
 [[package]]
 name = "gping"
-version = "1.18.0"
+version = "1.19.0"
 dependencies = [
  "anyhow",
  "chrono",
