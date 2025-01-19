@@ -3,6 +3,8 @@
 [![Crates.io](https://img.shields.io/crates/v/gping.svg)](https://crates.io/crates/gping)
 [![Actions Status](https://github.com/orf/gping/workflows/CI/badge.svg)](https://github.com/orf/gping/actions)
 
+[<img src="https://api.gitsponsors.com/api/badge/img?id=44440501" height="40">](https://api.gitsponsors.com/api/badge/link?p=X2SLz+zmM6ZKjYg0Lrb/amATPSiYKSLCUW/tH+hmMRKAykifuY5zjT8s0QhaAq+izC46s554JZ7oswGMK6hTe7jmTxNIYP2PGJn7qyh0h6w94dzoVKovYOb/yOU/VS6o19cD/AXYwBDkqNk/jl89rA==)
+
 Ping, but with a graph.
 
 ![](./images/readme-example.gif)
