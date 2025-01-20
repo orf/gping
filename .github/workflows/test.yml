@@ -52,7 +52,7 @@ jobs:
           key: ${{ steps.rust.outputs.cachekey }}
 
       - name: Test
-        uses: houseabsolute/actions-rust-cross@v0
+        uses: houseabsolute/actions-rust-cross@v1
         with:
           command: test
           target: ${{ matrix.target }}
@@ -63,7 +63,7 @@ jobs:
         run: cargo run --target ${{ matrix.target }} -- --help
 
       - name: Build release
-        uses: houseabsolute/actions-rust-cross@v0
+        uses: houseabsolute/actions-rust-cross@v1
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
           command: build
