@@ -18,7 +18,7 @@ chrono = "0.4.39"
 itertools = "0.14.0"
 shadow-rs = { version = "0.37.0", default-features = false }
 const_format = "0.2.34"
-clap = { version = "4.5.26", features = ["derive"] }
+clap = { version = "4.5.27", features = ["derive"] }
 clap_mangen = "0.2.26"
 idna = "1.0.3"
 
