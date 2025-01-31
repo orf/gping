@@ -1,0 +1,19 @@
+name: Publish to WinGet
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to release
+        required: true
+  release:
+    types: [ released ]
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: vedantmgoyal9/winget-releaser@main
+        with:
+          identifier: Package.Identifier
+          release-tag: '${{ github.event.release.tag_name || inputs.tag }}'
+          token: ${{ secrets.COMMITTER_TOKEN }}
