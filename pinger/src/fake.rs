@@ -4,6 +4,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::thread;
 use std::time::Duration;
+use rand::rng;
 
 pub struct FakePinger {
     options: PingOptions,
@@ -30,9 +31,9 @@ impl Pinger for FakePinger {
         let sleep_time = self.options.interval;
 
         thread::spawn(move || {
-            let mut random = thread_rng();
+            let mut random = rng();
             loop {
-                let fake_seconds = random.gen_range(50..150);
+                let fake_seconds = random.random_range(50..150);
                 let ping_result = PingResult::Pong(
                     Duration::from_millis(fake_seconds),
                     format!("Fake ping line: {fake_seconds} ms"),
