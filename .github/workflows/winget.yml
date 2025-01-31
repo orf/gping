@@ -14,6 +14,6 @@ jobs:
     steps:
       - uses: vedantmgoyal9/winget-releaser@main
         with:
-          identifier: Package.Identifier
+          identifier: orf.gping
           release-tag: '${{ github.event.release.tag_name || inputs.tag }}'
           token: ${{ secrets.COMMITTER_TOKEN }}
