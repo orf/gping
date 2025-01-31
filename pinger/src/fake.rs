@@ -1,10 +1,10 @@
 use crate::{PingCreationError, PingOptions, PingResult, Pinger};
 use rand::prelude::*;
+use rand::rng;
 use std::sync::mpsc;
 use std::sync::mpsc::Receiver;
 use std::thread;
 use std::time::Duration;
-use rand::rng;
 
 pub struct FakePinger {
     options: PingOptions,
