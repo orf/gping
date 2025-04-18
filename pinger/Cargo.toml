@@ -8,17 +8,17 @@ description = "A small cross-platform library to execute the ping command and pa
 repository = "https://github.com/orf/pinger/"
 
 [dependencies]
-thiserror = "2.0.11"
+thiserror = "2.0.12"
 lazy-regex = "3.4.1"
-rand = { version = "0.9.0", optional = true }
+rand = { version = "0.9.1", optional = true }
 
 [target.'cfg(windows)'.dependencies]
 winping = "0.10.1"
 
 [dev-dependencies]
-os_info = "3.9.2"
+os_info = "3.10.0"
 ntest = "0.9.3"
-anyhow = "1.0.95"
+anyhow = "1.0.98"
 
 [features]
 default = []
