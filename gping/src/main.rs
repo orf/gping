@@ -32,10 +32,12 @@ use tui::widgets::{Axis, Block, Borders, Chart, Dataset};
 use tui::Terminal;
 
 mod colors;
+mod histogram;
 mod plot_data;
 mod region_map;
 
 use colors::Colors;
+use histogram::HistogramState;
 use shadow_rs::{formatcp, shadow};
 use tui::prelude::Position;
 
@@ -127,6 +129,7 @@ following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta',
 
 struct App {
     data: Vec<PlotData>,
+    histogram: HistogramState,
     display_interval: chrono::Duration,
     started: chrono::DateTime<Local>,
 }
@@ -136,6 +139,7 @@ impl App {
         App {
             data,
             display_interval: chrono::Duration::from_std(Duration::from_secs(buffer)).unwrap(),
+            histogram: HistogramState::default(),
             started: Local::now(),
         }
     }
@@ -143,6 +147,7 @@ impl App {
     fn update(&mut self, host_idx: usize, item: Option<Duration>) {
         let host = &mut self.data[host_idx];
         host.update(item);
+        self.histogram.add_sample(item);
     }
 
     fn y_axis_bounds(&self) -> [f64; 2] {
@@ -517,6 +522,8 @@ fn main() -> Result<()> {
             }
             Event::Render => {
                 terminal.draw(|f| {
+                    let [chunk_area, histogram] = Layout::horizontal([Constraint::Percentage(75), Constraint::Fill(1)]).areas(f.area());
+
                     let chunks = Layout::default()
                         .flex(Flex::Legacy)
                         .direction(Direction::Vertical)
@@ -528,7 +535,7 @@ fn main() -> Result<()> {
                                 .chain(iter::once(Constraint::Percentage(10)))
                                 .collect::<Vec<_>>(),
                         )
-                        .split(f.area());
+                        .split(chunk_area);
 
                     let total_chunks = chunks.len();
 
@@ -579,7 +586,8 @@ fn main() -> Result<()> {
                                 .labels(app.y_axis_labels(y_axis_bounds)),
                         );
 
-                    f.render_widget(chart, *chart_chunk)
+                    f.render_widget(chart, *chart_chunk);
+                    app.histogram.render_histogram(&histogram, f.buffer_mut());
                 })?;
             }
             Event::Terminate => {
