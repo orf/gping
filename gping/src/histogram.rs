@@ -2,7 +2,7 @@ use core::time::Duration;
 
 use tui::{
     buffer::Buffer,
-    layout::Rect,
+    layout::{Layout, Constraint, Flex, Rect},
     symbols,
     style::{Color, Style},
     text::Line,
@@ -49,6 +49,17 @@ impl Default for HistogramState {
             bin_buckets,
         }
     }
+}
+
+
+/// helper function to create a top-right rect using up certain percentage of the available rect `r`
+/// https://ratatui.rs/examples/apps/popup/
+fn popup_area(area: Rect, consume_x_pct: u16, consume_y_pct: u16) -> Rect {
+    let vertical = Layout::vertical([Constraint::Percentage(consume_y_pct)]).flex(Flex::Start);
+    let horizontal = Layout::horizontal([Constraint::Percentage(consume_x_pct)]).flex(Flex::End);
+    let [area] = vertical.areas(area);
+    let [area] = horizontal.areas(area);
+    area
 }
 
 impl HistogramState {
@@ -155,11 +166,18 @@ impl HistogramState {
             )
             .render(*area, buffer);  
 
+        let stats_area = popup_area(*area, 35, 25);
         let stats_text = vec![
             Line::from(vec![
-                format!("Samples: {} Mode: {} ms Overflow >= {} ms", self.samples.len(), self.max_bin, self.overflow_bin).into(),
-            ])
+                format!("Samples: {}", self.samples.len()).into(),
+            ]),
+            Line::from(vec![
+                format!("Mode: {} ms", self.max_bin).into(),
+            ]),
+            Line::from(vec![
+                format!("Overflow >= {} ms", self.overflow_bin).into(),
+            ])            
         ];
-        Paragraph::new(stats_text).block(Block::bordered().title("Histogram")).render(*area, buffer);
+        Paragraph::new(stats_text).block(Block::bordered().title("Stats")).render(stats_area, buffer);
     }
 }
