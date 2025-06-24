@@ -26,6 +26,7 @@ use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};
 use tui::backend::{Backend, CrosstermBackend};
 use tui::layout::{Constraint, Direction, Flex, Layout};
+use tui::prelude::Rect;
 use tui::style::{Color, Style};
 use tui::text::Span;
 use tui::widgets::{Axis, Block, Borders, Chart, Dataset};
@@ -245,6 +246,7 @@ impl From<PingResult> for Update {
 enum Event {
     Update(usize, Update),
     Terminate,
+    ToggleHistogram,
     Render,
 }
 
@@ -496,6 +498,9 @@ fn main() -> Result<()> {
                             key_tx.send(Event::Terminate)?;
                             break;
                         }
+                        KeyCode::Char('h') => {
+                            key_tx.send(Event::ToggleHistogram)?;
+                        }
                         _ => {}
                     }
                 }
@@ -522,7 +527,17 @@ fn main() -> Result<()> {
             }
             Event::Render => {
                 terminal.draw(|f| {
-                    let [chunk_area, histogram] = Layout::horizontal([Constraint::Percentage(75), Constraint::Fill(1)]).areas(f.area());
+                    let (chunk_area, histogram) = match app.histogram.enabled {
+                        true => {
+                            let output: [Rect; 2] = Layout::horizontal([
+                                Constraint::Percentage(75),
+                                Constraint::Fill(1),
+                            ])
+                            .areas(f.area());
+                            (output[0], Some(output[1]))
+                        }
+                        false => (f.area(), None),
+                    };
 
                     let chunks = Layout::default()
                         .flex(Flex::Legacy)
@@ -587,12 +602,20 @@ fn main() -> Result<()> {
                         );
 
                     f.render_widget(chart, *chart_chunk);
-                    app.histogram.render_histogram(&histogram, f.buffer_mut());
+
+                    if app.histogram.enabled {
+                        let histogram_area = histogram.expect("Histogram area wasn't created.");
+                        app.histogram
+                            .render_histogram(&histogram_area, f.buffer_mut());
+                    }
                 })?;
             }
             Event::Terminate => {
                 killed.store(true, Ordering::Release);
                 break;
+            }
+            Event::ToggleHistogram => {
+                app.histogram.toggle();
             }
         }
     }

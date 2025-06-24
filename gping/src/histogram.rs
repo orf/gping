@@ -16,6 +16,7 @@ const DEFAULT_WINDOW_SIZE : usize = 500;
 
 #[derive(Debug)]
 pub struct HistogramState {
+    pub enabled: bool,
     /// the raw data used to compute the histogram
     /// the length of this cannot exceed window_size, if set
     pub samples : Vec<u64>,
@@ -46,6 +47,7 @@ impl Default for HistogramState {
             overflow_bin: bin_buckets[bin_buckets.len() - 1],
             max_bin: 0,
             max_count: 0,
+            enabled: false,
             bin_buckets,
         }
     }
@@ -63,14 +65,8 @@ fn popup_area(area: Rect, consume_y_pct: u16) -> Rect {
 }
 
 impl HistogramState {
-    fn _bin_index(&self, x: &u64) -> usize {
-        for i in 0 .. self.bin_buckets.len() {
-            if *x <= self.bin_buckets[i] {
-                return i
-            }
-        }
-
-        self.bin_buckets.len() - 1
+    pub fn toggle(&mut self) {
+        self.enabled = !self.enabled;
     }
 
     pub fn add_sample(&mut self, x: Option<Duration>) {
@@ -95,8 +91,21 @@ impl HistogramState {
             }
         }
 
-        self.update()
+        // we collect data when disabled, but we don't do anything else.
+        if self.enabled {
+            self.update();
+        }
     }
+
+    fn _bin_index(&self, x: &u64) -> usize {
+        for i in 0 .. self.bin_buckets.len() {
+            if *x <= self.bin_buckets[i] {
+                return i
+            }
+        }
+
+        self.bin_buckets.len() - 1
+    }    
 
     // FIXME: not efficient, recalculates from scratch 
     fn update_bins(&mut self) {
