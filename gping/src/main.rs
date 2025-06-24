@@ -145,6 +145,7 @@ impl App {
         }
     }
 
+    /// receiver of results from the ping thread
     fn update(&mut self, host_idx: usize, item: Option<Duration>) {
         let host = &mut self.data[host_idx];
         host.update(item);
