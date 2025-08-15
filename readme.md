@@ -40,34 +40,38 @@ Table of Contents
 * Alpine linux: `apk add gping`
 * Ubuntu >23.10/Debian >13: `apt install gping`
 * Ubuntu/Debian ([Azlux's repo](https://packages.azlux.fr/)):
-```bash
-echo 'deb [signed-by=/usr/share/keyrings/azlux.gpg] https://packages.azlux.fr/debian/ bookworm main' | sudo tee /etc/apt/sources.list.d/azlux.list
-sudo apt install gpg
-curl -s https://azlux.fr/repo.gpg.key | gpg --dearmor | sudo tee /usr/share/keyrings/azlux.gpg > /dev/null
-sudo apt update
-sudo apt install gping
-```
+  ```bash
+  echo 'deb [signed-by=/usr/share/keyrings/azlux.gpg] https://packages.azlux.fr/debian/ bookworm main' | sudo tee /etc/apt/sources.list.d/azlux.list
+  sudo apt install gpg
+  curl -s https://azlux.fr/repo.gpg.key | gpg --dearmor | sudo tee /usr/share/keyrings/azlux.gpg > /dev/null
+  sudo apt update
+  sudo apt install gping
+  ```
 * Gentoo ([dm9pZCAq overlay](https://github.com/gentoo-mirror/dm9pZCAq)):
-```sh
-sudo eselect repository enable dm9pZCAq
-sudo emerge --sync dm9pZCAq
-sudo emerge net-misc/gping::dm9pZCAq
-```
+  ```sh
+  sudo eselect repository enable dm9pZCAq
+  sudo emerge --sync dm9pZCAq
+  sudo emerge net-misc/gping::dm9pZCAq
+  ```
 * FreeBSD:
   * [pkg](https://www.freshports.org/net-mgmt/gping/): `pkg install gping`
   * [ports](https://cgit.freebsd.org/ports/tree/net-mgmt/gping) `cd /usr/ports/net-mgmt/gping; make install clean`
 * Docker:
-```sh
-# Check all options
-docker run --rm -ti --network host ghcr.io/orf/gping:gping-v1.15.1 --help
-# Ping google.com
-docker run --rm -ti --network host ghcr.io/orf/gping:gping-v1.15.1 google.com
-```
+  ```sh
+  # Check all options
+  docker run --rm -ti --network host ghcr.io/orf/gping:gping-v1.15.1 --help
+  # Ping google.com
+  docker run --rm -ti --network host ghcr.io/orf/gping:gping-v1.15.1 google.com
+  ```
 * Flox:
-```sh
-# Inside of a Flox environment
-flox install gping
-```
+  ```sh
+  # Inside of a Flox environment
+  flox install gping
+  ```
+* [gah](https://github.com/marverix/gah):
+  ```sh
+  gah install gping
+  ```
 
 # Usage :saxophone:
 
