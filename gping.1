@@ -12,10 +12,10 @@ Ping, but with a graph.
 \fB\-\-cmd\fR
 Graph the execution time for a list of commands rather than pinging hosts
 .TP
-\fB\-n\fR, \fB\-\-watch\-interval\fR=\fIWATCH_INTERVAL\fR
+\fB\-n\fR, \fB\-\-watch\-interval\fR \fI<WATCH_INTERVAL>\fR
 Watch interval seconds (provide partial seconds like \*(Aq0.5\*(Aq). Default for ping is 0.2, default for cmd is 0.5
 .TP
-\fB\-b\fR, \fB\-\-buffer\fR=\fIBUFFER\fR [default: 30]
+\fB\-b\fR, \fB\-\-buffer\fR \fI<BUFFER>\fR [default: 30]
 Determines the number of seconds to display in the graph
 .TP
 \fB\-4\fR
@@ -24,19 +24,19 @@ Resolve ping targets to IPv4 address
 \fB\-6\fR
 Resolve ping targets to IPv6 address
 .TP
-\fB\-i\fR, \fB\-\-interface\fR=\fIINTERFACE\fR
+\fB\-i\fR, \fB\-\-interface\fR \fI<INTERFACE>\fR
 Interface to use when pinging
 .TP
 \fB\-s\fR, \fB\-\-simple\-graphics\fR
 
 .TP
-\fB\-\-vertical\-margin\fR=\fIVERTICAL_MARGIN\fR [default: 1]
+\fB\-\-vertical\-margin\fR \fI<VERTICAL_MARGIN>\fR [default: 1]
 Vertical margin around the graph (top and bottom)
 .TP
-\fB\-\-horizontal\-margin\fR=\fIHORIZONTAL_MARGIN\fR [default: 0]
+\fB\-\-horizontal\-margin\fR \fI<HORIZONTAL_MARGIN>\fR [default: 0]
 Horizontal margin around the graph (left and right)
 .TP
-\fB\-c\fR, \fB\-\-color\fR=\fIcolor\fR
+\fB\-c\fR, \fB\-\-color\fR \fI<color>\fR
 Assign color to a graph entry.
 
 This option can be defined more than once as a comma separated string, and the
@@ -51,7 +51,7 @@ following color names: \*(Aqblack\*(Aq, \*(Aqred\*(Aq, \*(Aqgreen\*(Aq, \*(Aqyel
 \fB\-\-clear\fR
 Clear the graph from the terminal after closing the program
 .TP
-\fB\-\-ping\-args\fR=\fIPING_ARGS\fR
+\fB\-\-ping\-args\fR [\fI<PING_ARGS>...\fR]
 Extra arguments to pass to `ping`. These are platform dependent
 .TP
 \fB\-h\fR, \fB\-\-help\fR
