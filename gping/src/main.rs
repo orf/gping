@@ -96,6 +96,14 @@ struct Args {
     #[arg(long, default_value = "0")]
     horizontal_margin: u16,
 
+    /// Custom display names for hosts. Can be defined multiple times, corresponding to hosts in order.
+    #[arg(long)]
+    name: Vec<String>,
+
+    /// Test display names without starting the TUI (for debugging)
+    #[arg(long, hide = true)]
+    test_display: bool,
+
     #[arg(
         name = "color",
         short = 'c',
@@ -372,6 +380,27 @@ fn main() -> Result<()> {
         return Err(anyhow!("At least one host or command must be given (i.e gping google.com). Use --help for a full list of arguments."));
     }
 
+    // Early exit for testing display names
+    if args.test_display {
+        for (host_idx, host) in args.hosts_or_commands.iter().enumerate() {
+            let display = if let Some(custom_name) = args.name.get(host_idx) {
+                format!(
+                    "{} ({})",
+                    custom_name,
+                    get_host_ipaddr(host, args.ipv4, args.ipv6)?
+                )
+            } else {
+                format!(
+                    "{} ({})",
+                    host,
+                    get_host_ipaddr(host, args.ipv4, args.ipv6)?
+                )
+            };
+            println!("Host {}: {}", host_idx, display);
+        }
+        return Ok(());
+    }
+
     let mut data = vec![];
 
     let colors = Colors::from(args.color_codes_or_names.iter());
@@ -385,15 +414,26 @@ fn main() -> Result<()> {
         })
         .collect();
 
-    for (host_or_cmd, color) in hosts_or_commands.iter().zip(colors) {
+    for ((host_id, host_or_cmd), color) in hosts_or_commands.iter().enumerate().zip(colors) {
         let color = color?;
         let display = match args.cmd {
             true => host_or_cmd.to_string(),
-            false => format!(
-                "{} ({})",
-                host_or_cmd,
-                get_host_ipaddr(host_or_cmd, args.ipv4, args.ipv6)?
-            ),
+            false => {
+                // If a custom name is provided for this host, use it instead of the hostname
+                if let Some(custom_name) = args.name.get(host_id) {
+                    format!(
+                        "{} ({})",
+                        custom_name,
+                        get_host_ipaddr(host_or_cmd, args.ipv4, args.ipv6)?
+                    )
+                } else {
+                    format!(
+                        "{} ({})",
+                        host_or_cmd,
+                        get_host_ipaddr(host_or_cmd, args.ipv4, args.ipv6)?
+                    )
+                }
+            }
         };
         data.push(PlotData::new(
             display,
