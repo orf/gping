@@ -1,7 +1,10 @@
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
     use crate::bsd::BSDPinger;
+    #[cfg(unix)]
     use crate::linux::LinuxPinger;
+    #[cfg(unix)]
     use crate::macos::MacOSPinger;
     #[cfg(windows)]
     use crate::windows::WindowsPinger;
@@ -109,31 +112,37 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     #[test]
     fn macos() {
         test_parser::<MacOSPinger>(include_str!("tests/macos.txt"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn freebsd() {
         test_parser::<BSDPinger>(include_str!("tests/bsd.txt"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn dragonfly() {
         test_parser::<BSDPinger>(include_str!("tests/bsd.txt"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn openbsd() {
         test_parser::<BSDPinger>(include_str!("tests/bsd.txt"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn netbsd() {
         test_parser::<BSDPinger>(include_str!("tests/bsd.txt"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn ubuntu() {
         run_parser_test(
@@ -142,6 +151,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn debian() {
         run_parser_test(
@@ -156,6 +166,7 @@ mod tests {
         test_parser::<WindowsPinger>(include_str!("tests/windows.txt"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn android() {
         run_parser_test(
@@ -164,6 +175,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn alpine() {
         run_parser_test(
