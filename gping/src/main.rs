@@ -184,7 +184,7 @@ impl App {
         [before_idx, now_idx]
     }
 
-    fn x_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span> {
+    fn x_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span<'_>> {
         let lower_utc = DateTime::<Utc>::from_timestamp(bounds[0] as i64, 0)
             .expect("Error parsing x-axis bounds 0");
         let upper_utc = DateTime::<Utc>::from_timestamp(bounds[1] as i64, 0)
@@ -200,7 +200,7 @@ impl App {
         ]
     }
 
-    fn y_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span> {
+    fn y_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span<'_>> {
         // Create 7 labels for our y axis, based on the y-axis bounds we computed above.
         let min = bounds[0];
         let max = bounds[1];
@@ -523,8 +523,7 @@ fn main() -> Result<()> {
                         .vertical_margin(args.vertical_margin)
                         .horizontal_margin(args.horizontal_margin)
                         .constraints(
-                            iter::repeat(Constraint::Length(1))
-                                .take(app.data.len())
+                            std::iter::repeat_n(Constraint::Length(1), app.data.len())
                                 .chain(iter::once(Constraint::Percentage(10)))
                                 .collect::<Vec<_>>(),
                         )

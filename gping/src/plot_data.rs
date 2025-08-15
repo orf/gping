@@ -43,13 +43,13 @@ impl PlotData {
             .enumerate()
             .filter(|(_, (timestamp, _))| *timestamp < earliest_timestamp)
             .map(|(idx, _)| idx)
-            .last();
+            .next_back();
         if let Some(idx) = last_idx {
             self.data.drain(0..idx).for_each(drop)
         }
     }
 
-    pub fn header_stats(&self) -> Vec<Paragraph> {
+    pub fn header_stats(&self) -> Vec<Paragraph<'_>> {
         let ping_header = Paragraph::new(self.display.clone()).style(self.style);
         let items: Vec<&f64> = self
             .data
