@@ -77,6 +77,7 @@ jobs:
           executable-name: gping
           target: ${{ matrix.target }}
           extra-files: gping.1
+          changes-file: ""
 
   create_release:
     name: Release
