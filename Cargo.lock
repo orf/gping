@@ -461,7 +461,7 @@ dependencies = [
 
 [[package]]
 name = "gping"
-version = "1.20.0"
+version = "1.20.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -959,7 +959,7 @@ checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 
 [[package]]
 name = "pinger"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "lazy-regex",
