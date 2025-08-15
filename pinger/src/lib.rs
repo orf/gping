@@ -28,7 +28,7 @@ use thiserror::Error;
 
 #[cfg(unix)]
 pub mod linux;
-#[cfg(target_os = "macos")]
+#[cfg(unix)]
 pub mod macos;
 #[cfg(windows)]
 pub mod windows;
