@@ -33,6 +33,7 @@ pub mod macos;
 #[cfg(windows)]
 pub mod windows;
 
+#[cfg(unix)]
 mod bsd;
 #[cfg(feature = "fake-ping")]
 mod fake;
