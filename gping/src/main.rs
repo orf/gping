@@ -97,6 +97,18 @@ struct Args {
     #[arg(short = '0', help = "Equivalent to --ymin=0", conflicts_with = "ymin")]
     ymin_zero: bool,
 
+    /// Use TCP pings instead of ICMP
+    #[arg(long, short = 't', default_value_t = false)]
+    tcping: bool,
+
+    /// Treat RST as a drop (default is to not consider RST as pong)
+    #[arg(long, short = 'r', default_value_t = false)]
+    no_rst: bool,
+
+    /// TCP port (only used for TCP pings)
+    #[arg(long, short = 'p', default_value_t = 80)]
+    port: u16,
+
     #[arg(
         name = "color",
         short = 'c',
@@ -473,10 +485,16 @@ fn main() -> Result<()> {
             } else {
                 PingOptions::new(host_or_cmd, interval, interface.clone())
             };
+
             if let Some(ping_args) = &ping_args {
                 ping_opts = ping_opts.with_raw_arguments(ping_args.clone());
             }
-
+            if args.tcping {
+              ping_opts = ping_opts
+                  .with_tcping(true)
+                  .with_port(args.port)
+                  .with_allow_rst(args.no_rst);
+            }
             threads.push(start_ping_thread(
                 ping_opts,
                 host_id,
