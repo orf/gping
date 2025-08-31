@@ -31,14 +31,14 @@ impl Pinger for TcpPinger {
         thread::spawn(move || {
             for _ in 0.. {
                 let port = options.port.unwrap_or(80);
-                let socket_str = format!("{}:{}", options.target.to_string(), port);
+                let socket_str = format!("{}:{}", options.target, port);
                 let addr = match socket_str.to_socket_addrs() {
                     Ok(mut addrs) => match addrs.next() {
                         Some(a) => a,
                         None => {
-                            let _ = tx.send(PingResult::Unknown(format!(
-                                "Unable to resolve address"
-                            )));
+                            let _ = tx.send(PingResult::Unknown(
+                                "Unable to resolve address".to_string()
+                            ));
                             continue;
                         }
                     },
