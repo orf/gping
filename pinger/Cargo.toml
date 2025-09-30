@@ -5,7 +5,7 @@ authors = ["Tom Forbes <tom@tomforb.es>"]
 edition = "2018"
 license = "MIT"
 description = "A small cross-platform library to execute the ping command and parse the output"
-repository = "https://github.com/orf/pinger/"
+repository = "https://github.com/orf/gping/tree/master/pinger"
 
 [dependencies]
 thiserror = "2.0.11"
