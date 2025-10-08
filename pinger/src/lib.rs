@@ -41,12 +41,17 @@ mod target;
 #[cfg(test)]
 mod test;
 
+mod tcp;
+
 #[derive(Debug, Clone)]
 pub struct PingOptions {
     pub target: Target,
     pub interval: Duration,
     pub interface: Option<String>,
     pub raw_arguments: Option<Vec<String>>,
+    pub tcping: bool,     // use TCP instead of ICMP
+    pub allow_rst: bool,  // We can take leverage connection refused as a valid pong in some case
+    pub port: Option<u16>, // optional port for TCP ping
 }
 
 impl PingOptions {
@@ -68,6 +73,9 @@ impl PingOptions {
             interval,
             interface,
             raw_arguments: None,
+            tcping: false,
+            allow_rst: false,
+            port: Some(80),
         }
     }
     pub fn new(target: impl ToString, interval: Duration, interface: Option<String>) -> Self {
@@ -80,6 +88,20 @@ impl PingOptions {
 
     pub fn new_ipv6(target: impl ToString, interval: Duration, interface: Option<String>) -> Self {
         Self::from_target(Target::new_ipv6(target), interval, interface)
+    }
+    /// Enable or disable TCP ping
+    pub fn with_tcping(mut self, tcping: bool) -> Self {
+        self.tcping = tcping;
+        self
+    }
+    /// Allow or disallow treating RST as a valid response
+    pub fn with_allow_rst(mut self, allow: bool) -> Self {
+        self.allow_rst = allow;
+        self
+    }
+    pub fn with_port(mut self, port: u16) -> Self {
+        self.port = Some(port);
+        self
     }
 }
 
@@ -203,6 +225,10 @@ pub fn get_pinger(options: PingOptions) -> std::result::Result<Arc<dyn Pinger>, 
         .unwrap_or_default()
     {
         return Ok(Arc::new(fake::FakePinger::from_options(options)?));
+    }
+
+    if options.tcping {
+        return Ok(Arc::new(crate::tcp::TcpPinger::from_options(options)?));
     }
 
     #[cfg(windows)]
