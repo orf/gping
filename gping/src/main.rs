@@ -54,7 +54,7 @@ build_env: {},{}"#,
 );
 
 #[derive(Parser, Debug)]
-#[command(author, version=build::PKG_VERSION, name = "gping", about = "Ping, but with a graph.", long_version = VERSION_INFO
+#[command(author, version=build::PKG_VERSION, name = "gping", about = "Ping, but with a graph.", long_version = VERSION_INFO, styles = clap_cargo::style::CLAP_STYLING
 )]
 struct Args {
     /// Graph the execution time for a list of commands rather than pinging hosts
