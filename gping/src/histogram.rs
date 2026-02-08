@@ -54,10 +54,10 @@ impl Default for HistogramState {
 }
 
 
-/// helper function to create a top-right rect using up certain percentage of the available rect `r`
+/// helper function to create a top-right rect using a count of lines of the available rect `r`
 /// modified from https://ratatui.rs/examples/apps/popup/
-fn popup_area(area: Rect, consume_y_pct: u16) -> Rect {
-    let vertical = Layout::vertical([Constraint::Percentage(consume_y_pct)]).flex(Flex::Start);
+fn popup_area(area: Rect, consume_y: u16) -> Rect {
+    let vertical = Layout::vertical([Constraint::Length(consume_y)]).flex(Flex::Start);
     let horizontal = Layout::horizontal([Constraint::Fill(1), Constraint::Min(20)]);
     let [area] = vertical.areas(area);
     let [_, area] = horizontal.areas(area);
@@ -175,7 +175,7 @@ impl HistogramState {
             )
             .render(*area, buffer);  
 
-        let stats_area = popup_area(*area, 25);
+        let stats_area = popup_area(*area, 3 + 2);
         let stats_text = vec![
             Line::from(vec![
                 format!("Samples: {}", self.samples.len()).into(),
