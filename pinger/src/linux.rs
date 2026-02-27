@@ -61,15 +61,19 @@ impl Pinger for LinuxPinger {
     }
 
     fn ping_args(&self) -> (&str, Vec<String>) {
-        match self {
+        let has_ping6 = {
+            match run_ping("ping", vec!["-V".to_string()]) {
+                Ok(mut p) => match p.wait() {
+                    Ok(p) => p.success(),
+                    Err(_) => false,
+                },
+                Err(_) => false,
+            }
+        };
+
+        let (is_v6, mut args) = match self {
             // Alpine doesn't support timeout notifications, so we don't add the -O flag here.
             LinuxPinger::BusyBox(options) => {
-                let cmd = if options.target.is_ipv6() {
-                    "ping6"
-                } else {
-                    "ping"
-                };
-
                 let mut args = vec![
                     options.target.to_string(),
                     format!("-i{:.1}", options.interval.as_millis() as f32 / 1_000_f32),
@@ -79,15 +83,9 @@ impl Pinger for LinuxPinger {
                     args.extend(raw_args.iter().cloned());
                 }
 
-                (cmd, args)
+                (options.target.is_ipv6(), args)
             }
             LinuxPinger::IPTools(options) => {
-                let cmd = if options.target.is_ipv6() {
-                    "ping6"
-                } else {
-                    "ping"
-                };
-
                 // The -O flag ensures we "no answer yet" messages from ping
                 // See https://superuser.com/questions/270083/linux-ping-show-time-out
                 let mut args = vec![
@@ -103,8 +101,18 @@ impl Pinger for LinuxPinger {
                 }
 
                 args.push(options.target.to_string());
-                (cmd, args)
+                (options.target.is_ipv6(), args)
             }
+        };
+
+        match (is_v6, has_ping6) {
+            (true, true) => ("ping6", args),
+            (true, false) => {
+                // Fall back to "ping -6"
+                args.insert(0, "-6".to_string());
+                ("ping", args)
+            }
+            (false, _) => ("ping", args),
         }
     }
 }

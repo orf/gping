@@ -19,6 +19,7 @@ winping = "0.10.1"
 os_info = "3.14.0"
 ntest = "0.9.5"
 anyhow = "1.0.101"
+assert_matches = "1.5.0"
 
 [features]
 default = []

@@ -14,12 +14,14 @@ mod tests {
     use std::time::Duration;
 
     const IS_GHA: bool = option_env!("GITHUB_ACTIONS").is_some();
+    const TARGET: &str = "127.0.0.1";
+    const TARGET_6: &str = "::1";
 
     #[test]
     #[timeout(20_000)]
     fn test_integration_any() {
         run_integration_test(PingOptions::new(
-            "tomforb.es",
+            TARGET,
             Duration::from_millis(500),
             None,
         ))
@@ -29,7 +31,7 @@ mod tests {
     #[timeout(20_000)]
     fn test_integration_ipv4() {
         run_integration_test(PingOptions::new_ipv4(
-            "tomforb.es",
+            TARGET,
             Duration::from_millis(500),
             None,
         ))
@@ -39,11 +41,11 @@ mod tests {
     #[timeout(20_000)]
     fn test_integration_ip6() {
         let res = run_integration_test(PingOptions::new_ipv6(
-            "tomforb.es",
+            TARGET_6,
             Duration::from_millis(500),
             None,
         ));
-        // ipv6 tests are allowed to fail on Gitlab CI, as it doesn't support ipv6, apparently.
+        // ipv6 tests are allowed to fail on Github CI, as it doesn't support ipv6, apparently.
         if !IS_GHA {
             res.unwrap();
         }
