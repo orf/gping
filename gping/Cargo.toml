@@ -16,7 +16,7 @@ crossterm = "0.29.0"
 anyhow = "1.0.101"
 chrono = "0.4.43"
 itertools = "0.14.0"
-shadow-rs = { version = "1.7.0", default-features = false }
+shadow-rs = { version = "1.7.1", default-features = false }
 const_format = "0.2.35"
 clap = { version = "4.5.57", features = ["derive"] }
 clap_mangen = "0.2.31"
@@ -24,4 +24,4 @@ idna = "1.1.0"
 clap-cargo = "0.18.3"
 
 [build-dependencies]
-shadow-rs = { version = "1.7.0"}
+shadow-rs = { version = "1.7.1"}
