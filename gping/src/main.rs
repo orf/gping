@@ -96,6 +96,18 @@ struct Args {
     #[arg(long, default_value = "0")]
     horizontal_margin: u16,
 
+    /// set y-axis minimum
+    #[arg(long, help = "Set vertical axis min (ms)")]
+    ymin: Option<u64>,
+
+    /// set y-axis maximum
+    #[arg(long, help = "Set vertical axis max (ms)")]
+    ymax: Option<u64>,
+
+    /// set y-axis minimum to zero
+    #[arg(short = '0', help = "Equivalent to --ymin=0", conflicts_with = "ymin")]
+    ymin_zero: bool,
+
     #[arg(
         name = "color",
         short = 'c',
@@ -128,15 +140,17 @@ following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta',
 struct App {
     data: Vec<PlotData>,
     display_interval: chrono::Duration,
-    started: chrono::DateTime<Local>,
+    started:chrono::DateTime<Local>,
+    yrange: (Option<f64>, Option<f64>)
 }
 
 impl App {
-    fn new(data: Vec<PlotData>, buffer: u64) -> Self {
+    fn new(data: Vec<PlotData>, buffer: u64, yrange: (Option<f64>, Option<f64>)) -> Self {
         App {
             data,
             display_interval: chrono::Duration::from_std(Duration::from_secs(buffer)).unwrap(),
             started: Local::now(),
+            yrange: yrange
         }
     }
 
@@ -149,7 +163,8 @@ impl App {
         // Find the Y axis bounds for our chart.
         // This is trickier than the x-axis. We iterate through all our PlotData structs
         // and find the min/max of all the values. Then we add a 10% buffer to them.
-        let (min, max) = match self
+        let (ymin, ymax) = self.yrange;
+        let (mut min, mut max) = match self
             .data
             .iter()
             .flat_map(|b| b.data.as_slice())
@@ -158,14 +173,27 @@ impl App {
             .minmax()
         {
             MinMaxResult::NoElements => (f64::INFINITY, 0_f64),
-            MinMaxResult::OneElement(elm) => (elm, elm),
-            MinMaxResult::MinMax(min, max) => (min, max),
+            MinMaxResult::OneElement(elm) => (
+                ymin.unwrap_or(elm),
+                elm
+            ),
+            MinMaxResult::MinMax(min, max) => (
+                ymin.unwrap_or(min),
+                ymax.unwrap_or(max),
+            )
         };
 
+        // Reject negative bounds
+        // Show at least 1 ms of y-axis
+        if ymin != None {
+            min = min.clamp(0.0, f64::INFINITY);
+            max = max.clamp(min + 1000.0, f64::INFINITY);
+        }
+
         // Add a 10% buffer to the top and bottom
-        let max_10_percent = (max * 10_f64) / 100_f64;
-        let min_10_percent = (min * 10_f64) / 100_f64;
-        [min - min_10_percent, max + max_10_percent]
+        let pos_margin = (max * 10_f64) / 100_f64;
+        let neg_margin = (min * 10_f64) / 100_f64;
+        [min - neg_margin, max + pos_margin]
     }
 
     fn x_axis_bounds(&self) -> [f64; 2] {
@@ -353,6 +381,15 @@ fn get_host_ipaddr(host: &str, force_ipv4: bool, force_ipv6: bool) -> Result<Str
     Ok(ipaddr?.to_string())
 }
 
+// Convert milliseconds Option<u64>
+// to microseconds Option<f64>.
+fn ms_to_us_option(ms: Option<u64>) -> Option<f64> {
+    match ms {
+        None => None,
+        Some(x) => Some(1000.0 * (x as f64))
+    }
+}
+
 fn generate_man_page(path: &Path) -> anyhow::Result<()> {
     let man = clap_mangen::Man::new(Args::command().version(None).long_version(None));
     let mut buffer: Vec<u8> = Default::default();
@@ -371,6 +408,11 @@ fn main() -> Result<()> {
     if args.hosts_or_commands.is_empty() {
         return Err(anyhow!("At least one host or command must be given (i.e gping google.com). Use --help for a full list of arguments."));
     }
+
+    let yrange = (
+        ms_to_us_option(if args.ymin_zero {Some(0)} else {args.ymin}),
+        ms_to_us_option(args.ymax)
+    );
 
     let mut data = vec![];
 
@@ -457,7 +499,7 @@ fn main() -> Result<()> {
         key_tx.clone(),
     ));
 
-    let mut app = App::new(data, args.buffer);
+    let mut app = App::new(data, args.buffer, yrange);
     enable_raw_mode()?;
     let stdout = io::stdout();
     let mut backend = CrosstermBackend::new(BufWriter::with_capacity(1024 * 1024 * 4, stdout));
