@@ -42,7 +42,7 @@ Table of Contents
 * Ubuntu/Debian ([Azlux's repo](https://packages.azlux.fr/)):
   ```bash
   echo 'deb [signed-by=/usr/share/keyrings/azlux.gpg] https://packages.azlux.fr/debian/ bookworm main' | sudo tee /etc/apt/sources.list.d/azlux.list
-  sudo apt install gpg
+  sudo apt install gpg curl
   curl -s https://azlux.fr/repo.gpg.key | gpg --dearmor | sudo tee /usr/share/keyrings/azlux.gpg > /dev/null
   sudo apt update
   sudo apt install gping
