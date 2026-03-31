@@ -53,6 +53,9 @@ build_env: {},{}"#,
     build::RUST_CHANNEL
 );
 
+/// Maximum length for global labels (truncated if longer)
+const MAX_GLOBAL_LABEL_LENGTH: usize = 10;
+
 #[derive(Parser, Debug)]
 #[command(author, version=build::PKG_VERSION, name = "gping", about = "Ping, but with a graph.", long_version = VERSION_INFO, styles = clap_cargo::style::CLAP_STYLING
 )]
@@ -123,6 +126,193 @@ following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta',
     /// Extra arguments to pass to `ping`. These are platform dependent.
     #[arg(long, allow_hyphen_values = true, num_args = 0.., conflicts_with="cmd")]
     ping_args: Option<Vec<String>>,
+
+    #[arg(
+        name = "global_labels",
+        short = 'L',
+        long = "global-labels",
+        action,
+        conflicts_with = "per_host_label",
+        help = r#"Enable global labels mode with aligned columns.
+
+Arguments alternate: "label" host "label" host...
+Use "" (empty string) for hosts without a label.
+Labels are truncated to 10 characters max.
+All host addresses align vertically in the same column.
+
+Example: gping -L "Cloudflare" 1.1.1.1 "Google" 8.8.8.8 "" 172.17.0.1
+
+Output:
+  Cloudflare  1.1.1.1 (1.1.1.1)
+  Google      8.8.8.8 (8.8.8.8)
+              172.17.0.1 (172.17.0.1)"#
+    )]
+    global_labels: bool,
+
+    #[arg(
+        name = "per_host_label",
+        short = 'l',
+        long = "label",
+        action = clap::ArgAction::Append,
+        number_of_values = 1,
+        conflicts_with = "global_labels",
+        help = r#"Add a label to the next host (repeatable).
+
+Each -l applies to the following host argument.
+Hosts without -l get no label or padding.
+
+Example: gping -l "Cloudflare" 1.1.1.1 -l "Google" 8.8.8.8 172.17.0.1
+
+Output:
+  Cloudflare  1.1.1.1 (1.1.1.1)
+  Google  8.8.8.8 (8.8.8.8)
+  172.17.0.1 (172.17.0.1)"#
+    )]
+    per_host_labels: Vec<String>,
+}
+
+/// Represents a host with its optional label
+#[derive(Debug, Clone)]
+struct LabeledHost {
+    label: Option<String>,
+    host: String,
+}
+
+/// Parse global labels mode: arguments alternate "label" host "label" host...
+/// Use "" for hosts without labels.
+fn parse_global_labels(args: &[String]) -> Result<Vec<LabeledHost>> {
+    let mut result = Vec::new();
+
+    if args.len() % 2 != 0 {
+        bail!(
+            "Global labels mode (-L) requires pairs of \"label\" host. Got {} arguments, expected even number.\n\
+            Use \"\" for hosts without labels.\n\
+            Example: gping -L \"Cloudflare\" 1.1.1.1 \"Google\" 8.8.8.8 \"\" 172.17.0.1",
+            args.len()
+        );
+    }
+
+    for chunk in args.chunks(2) {
+        let label_str = &chunk[0];
+        let host = &chunk[1];
+
+        // Truncate label to MAX_GLOBAL_LABEL_LENGTH if needed
+        let label = if label_str.is_empty() {
+            None
+        } else {
+            let truncated = if label_str.len() > MAX_GLOBAL_LABEL_LENGTH {
+                eprintln!(
+                    "Warning: Label \"{}\" truncated to {} characters",
+                    label_str, MAX_GLOBAL_LABEL_LENGTH
+                );
+                label_str.chars().take(MAX_GLOBAL_LABEL_LENGTH).collect()
+            } else {
+                label_str.clone()
+            };
+            Some(truncated)
+        };
+
+        result.push(LabeledHost {
+            label,
+            host: host.clone(),
+        });
+    }
+
+    Ok(result)
+}
+
+/// Parse per-host labels: each -l "label" applies to the next positional host
+fn parse_per_host_labels(hosts: &[String], labels: &[String]) -> Result<Vec<LabeledHost>> {
+    // The way clap works with interleaved flags and positional args is tricky.
+    // We need to match labels to hosts by their position in the original command.
+    // Since we can't easily get original positions, we'll use a simpler approach:
+    // Labels are applied in order to the first N hosts where N = number of labels.
+
+    let mut result = Vec::new();
+
+    for (idx, host) in hosts.iter().enumerate() {
+        let label = labels.get(idx).cloned();
+        result.push(LabeledHost {
+            label,
+            host: host.clone(),
+        });
+    }
+
+    Ok(result)
+}
+
+/// Build display strings for labeled hosts
+fn build_display_strings(
+    labeled_hosts: &[LabeledHost],
+    global_mode: bool,
+    is_cmd: bool,
+    ipv4: bool,
+    ipv6: bool,
+) -> Result<Vec<(String, String)>> {
+    // Returns Vec of (display_string, actual_host)
+
+    let mut results = Vec::new();
+
+    if global_mode {
+        // Calculate max label width for alignment (capped at MAX_GLOBAL_LABEL_LENGTH)
+        let max_label_len = labeled_hosts
+            .iter()
+            .filter_map(|lh| lh.label.as_ref())
+            .map(|l| l.len().min(MAX_GLOBAL_LABEL_LENGTH))
+            .max()
+            .unwrap_or(0);
+
+        // Column width = max label length + 2 spaces
+        let column_width = if max_label_len > 0 {
+            max_label_len + 2
+        } else {
+            0
+        };
+
+        for lh in labeled_hosts {
+            let host_display = if is_cmd {
+                lh.host.clone()
+            } else {
+                format!("{} ({})", &lh.host, get_host_ipaddr(&lh.host, ipv4, ipv6)?)
+            };
+
+            let display = if column_width > 0 {
+                match &lh.label {
+                    Some(label) => {
+                        // Pad label to column_width (label + spaces to fill)
+                        let padding = column_width - label.len();
+                        format!("{}{}{}", label, " ".repeat(padding), host_display)
+                    }
+                    None => {
+                        // Empty label, just pad with spaces
+                        format!("{}{}", " ".repeat(column_width), host_display)
+                    }
+                }
+            } else {
+                host_display
+            };
+
+            results.push((display, lh.host.clone()));
+        }
+    } else {
+        // Per-host mode: 2 spaces after label, no alignment
+        for lh in labeled_hosts {
+            let host_display = if is_cmd {
+                lh.host.clone()
+            } else {
+                format!("{} ({})", &lh.host, get_host_ipaddr(&lh.host, ipv4, ipv6)?)
+            };
+
+            let display = match &lh.label {
+                Some(label) => format!("{}  {}", label, host_display),
+                None => host_display,
+            };
+
+            results.push((display, lh.host.clone()));
+        }
+    }
+
+    Ok(results)
 }
 
 struct App {
@@ -372,10 +562,20 @@ fn main() -> Result<()> {
         return Err(anyhow!("At least one host or command must be given (i.e gping google.com). Use --help for a full list of arguments."));
     }
 
+    // Sanity check: -L and -l are mutually exclusive (enforced by clap, but let's be safe)
+    if args.global_labels && !args.per_host_labels.is_empty() {
+        return Err(anyhow!(
+            "Cannot use both -L (global labels) and -l (per-host labels) at the same time. \
+            Global labels (-L) takes precedence if both are specified."
+        ));
+    }
+
     let mut data = vec![];
 
     let colors = Colors::from(args.color_codes_or_names.iter());
-    let hosts_or_commands: Vec<String> = args
+
+    // Process hosts with cloud region expansion
+    let expanded_hosts: Vec<String> = args
         .hosts_or_commands
         .clone()
         .into_iter()
@@ -385,18 +585,43 @@ fn main() -> Result<()> {
         })
         .collect();
 
-    for (host_or_cmd, color) in hosts_or_commands.iter().zip(colors) {
+    // Parse labels based on mode
+    let labeled_hosts = if args.global_labels {
+        parse_global_labels(&expanded_hosts)?
+    } else if !args.per_host_labels.is_empty() {
+        parse_per_host_labels(&expanded_hosts, &args.per_host_labels)?
+    } else {
+        // No labels mode - just wrap hosts
+        expanded_hosts
+            .iter()
+            .map(|h| LabeledHost {
+                label: None,
+                host: h.clone(),
+            })
+            .collect()
+    };
+
+    // Sanity check: ensure we have hosts to ping
+    if labeled_hosts.is_empty() {
+        return Err(anyhow!(
+            "No hosts to ping after parsing. Check your label/host arguments."
+        ));
+    }
+
+    // Build display strings
+    let display_and_hosts = build_display_strings(
+        &labeled_hosts,
+        args.global_labels,
+        args.cmd,
+        args.ipv4,
+        args.ipv6,
+    )?;
+
+    // Create PlotData for each host
+    for ((display, _host), color) in display_and_hosts.iter().zip(colors) {
         let color = color?;
-        let display = match args.cmd {
-            true => host_or_cmd.to_string(),
-            false => format!(
-                "{} ({})",
-                host_or_cmd,
-                get_host_ipaddr(host_or_cmd, args.ipv4, args.ipv6)?
-            ),
-        };
         data.push(PlotData::new(
-            display,
+            display.clone(),
             args.buffer,
             Style::default().fg(color),
             args.simple_graphics,
@@ -419,10 +644,11 @@ fn main() -> Result<()> {
 
     let killed = Arc::new(AtomicBool::new(false));
 
-    for (host_id, host_or_cmd) in hosts_or_commands.iter().cloned().enumerate() {
+    // Use the actual hosts (not display strings) for pinging
+    for (host_id, (_display, host)) in display_and_hosts.iter().enumerate() {
         if args.cmd {
             let cmd_thread = start_cmd_thread(
-                &host_or_cmd,
+                host,
                 host_id,
                 args.watch_interval,
                 key_tx.clone(),
@@ -434,11 +660,11 @@ fn main() -> Result<()> {
                 Duration::from_millis((args.watch_interval.unwrap_or(0.2) * 1000.0) as u64);
 
             let mut ping_opts = if args.ipv4 {
-                PingOptions::new_ipv4(host_or_cmd, interval, interface.clone())
+                PingOptions::new_ipv4(host.clone(), interval, interface.clone())
             } else if args.ipv6 {
-                PingOptions::new_ipv6(host_or_cmd, interval, interface.clone())
+                PingOptions::new_ipv6(host.clone(), interval, interface.clone())
             } else {
-                PingOptions::new(host_or_cmd, interval, interface.clone())
+                PingOptions::new(host.clone(), interval, interface.clone())
             };
             if let Some(ping_args) = &ping_args {
                 ping_opts = ping_opts.with_raw_arguments(ping_args.clone());
