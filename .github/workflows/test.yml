@@ -88,12 +88,12 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           merge-multiple: true
       - name: Publish
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: false
           files: |
