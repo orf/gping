@@ -38,6 +38,12 @@ mod region_map;
 use colors::Colors;
 use tui::prelude::Position;
 
+#[cfg(target_os = "openbsd")]
+const DEFAULT_PING_INTERVAL_SECONDS: f32 = 1.0;
+#[cfg(not(target_os = "openbsd"))]
+const DEFAULT_PING_INTERVAL_SECONDS: f32 = 0.2;
+const DEFAULT_CMD_INTERVAL_SECONDS: f32 = 0.5;
+
 #[derive(Parser, Debug)]
 #[command(author, version, name = "gping", about = "Ping, but with a graph.", styles = clap_cargo::style::CLAP_STYLING)]
 struct Args {
@@ -45,7 +51,7 @@ struct Args {
     #[arg(long)]
     cmd: bool,
 
-    /// Watch interval seconds (provide partial seconds like '0.5'). Default for ping is 0.2, default for cmd is 0.5.
+    /// Watch interval seconds (provide partial seconds like '0.5'). Default for ping is 0.2 (1.0 on OpenBSD), default for cmd is 0.5.
     #[arg(short = 'n', long)]
     watch_interval: Option<f32>,
 
@@ -254,7 +260,9 @@ fn start_cmd_thread(
         .to_string();
     let cmd_args = words.map(|w| w.to_string()).collect::<Vec<String>>();
 
-    let interval = Duration::from_millis((watch_interval.unwrap_or(0.5) * 1000.0) as u64);
+    let interval = Duration::from_millis(
+        (watch_interval.unwrap_or(DEFAULT_CMD_INTERVAL_SECONDS) * 1000.0) as u64,
+    );
 
     // Pump cmd watches into the queue
     thread::spawn(move || -> Result<()> {
@@ -414,8 +422,9 @@ fn main() -> Result<()> {
             );
             threads.push(cmd_thread);
         } else {
-            let interval =
-                Duration::from_millis((args.watch_interval.unwrap_or(0.2) * 1000.0) as u64);
+            let interval = Duration::from_millis(
+                (args.watch_interval.unwrap_or(DEFAULT_PING_INTERVAL_SECONDS) * 1000.0) as u64,
+            );
 
             let mut ping_opts = if args.ipv4 {
                 PingOptions::new_ipv4(host_or_cmd, interval, interface.clone())
