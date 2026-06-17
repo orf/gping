@@ -14,7 +14,7 @@ tui = { package = "ratatui", version = "0.30.1", features = ["crossterm"], defau
 crossterm = "0.29.0"
 anyhow = "1.0.101"
 chrono = "0.4.43"
-itertools = "0.14.0"
+itertools = "0.15.0"
 clap = { version = "4.5.57", features = ["derive"] }
 clap_mangen = "0.3.0"
 idna = "1.1.0"
