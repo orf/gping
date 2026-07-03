@@ -45,7 +45,10 @@ impl PlotData {
             .map(|(idx, _)| idx)
             .next_back();
         if let Some(idx) = last_idx {
-            self.data.drain(0..idx).for_each(drop)
+            // `idx` itself is still stale (it matched the filter above), so it must be
+            // included in the drained range too, otherwise one out-of-window point is
+            // always left behind.
+            self.data.drain(0..=idx).for_each(drop)
         }
     }
 
@@ -138,6 +141,37 @@ impl<'a> From<&'a PlotData> for Dataset<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Regression test for the buffer trim in `PlotData::update`: every point older than
+    // `buffer` seconds should be dropped, including the single oldest stale point, which
+    // used to survive because `drain(0..idx)` excluded the boundary index itself.
+    #[test]
+    fn update_drops_all_points_outside_the_buffer_window() {
+        let buffer_secs = 5u64;
+        let mut plot = PlotData::new("host".to_string(), buffer_secs, Style::default(), false);
+
+        let now = Local::now().timestamp_millis() as f64 / 1_000f64;
+
+        // Seed with a mix of stale (older than the buffer window) and fresh points,
+        // pushed in ascending timestamp order like the real update loop would.
+        plot.data.push((now - 10.0, 100.0)); // stale
+        plot.data.push((now - 8.0, 200.0)); // stale
+        plot.data.push((now - 6.0, 300.0)); // stale, closest to the boundary
+        plot.data.push((now - 2.0, 400.0)); // fresh
+        plot.data.push((now - 1.0, 500.0)); // fresh
+
+        // Triggers the trim logic; also appends one brand-new point.
+        plot.update(Some(Duration::from_millis(42)));
+
+        let earliest_allowed = now - buffer_secs as f64;
+        for &(timestamp, _) in &plot.data {
+            assert!(
+                timestamp >= earliest_allowed,
+                "found a point at {timestamp}, which is older than the buffer window start {earliest_allowed}; data: {:?}",
+                plot.data
+            );
+        }
+    }
 
     #[test]
     fn test_jitter_uses_chronological_order() {
