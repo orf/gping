@@ -51,6 +51,15 @@ impl PlotData {
 
     pub fn header_stats(&self) -> Vec<Paragraph<'_>> {
         let ping_header = Paragraph::new(self.display.clone()).style(self.style);
+        // Chronologically-ordered (i.e. not sorted) latencies, used for the jitter
+        // calculation which needs to compare consecutive samples in the order they
+        // actually occurred.
+        let chronological: Vec<f64> = self
+            .data
+            .iter()
+            .filter(|(_, x)| !x.is_nan())
+            .map(|(_, v)| *v)
+            .collect();
         let items: Vec<&f64> = self
             .data
             .iter()
@@ -65,12 +74,7 @@ impl PlotData {
         let min = **items.first().unwrap();
         let max = **items.last().unwrap();
         let avg = items.iter().copied().sum::<f64>() / items.len() as f64;
-        let jtr = items
-            .iter()
-            .zip(items.iter().skip(1))
-            .map(|(&prev, &curr)| (curr - prev).abs())
-            .sum::<f64>()
-            / (items.len() - 1) as f64;
+        let jtr = jitter(&chronological);
 
         let percentile_position = 0.95 * items.len() as f32;
         let rounded_position = percentile_position.round() as usize;
@@ -100,6 +104,22 @@ impl PlotData {
     }
 }
 
+/// Average absolute difference between consecutive values, taken in the order
+/// they are given (i.e. the caller is responsible for passing them in
+/// chronological order, not sorted). With fewer than two values there is no
+/// consecutive pair to compare, so jitter is reported as 0.
+fn jitter(values: &[f64]) -> f64 {
+    if values.len() < 2 {
+        return 0.0;
+    }
+    values
+        .iter()
+        .zip(values.iter().skip(1))
+        .map(|(prev, curr)| (curr - prev).abs())
+        .sum::<f64>()
+        / (values.len() - 1) as f64
+}
+
 impl<'a> From<&'a PlotData> for Dataset<'a> {
     fn from(plot: &'a PlotData) -> Self {
         let slice = plot.data.as_slice();
@@ -112,5 +132,35 @@ impl<'a> From<&'a PlotData> for Dataset<'a> {
             .style(plot.style)
             .graph_type(GraphType::Line)
             .data(slice)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_jitter_uses_chronological_order() {
+        // Oscillating latencies: sorted-order "jitter" would telescope down to
+        // (max - min) / (n - 1) = (90 - 10) / 5 = 16, which is really a range
+        // statistic, not jitter. In chronological order every consecutive pair
+        // differs by 80, so the real jitter should be 80.
+        let values = vec![10.0, 90.0, 10.0, 90.0, 10.0, 90.0];
+
+        let sorted_order_value = (90.0 - 10.0) / (values.len() - 1) as f64;
+        let result = jitter(&values);
+
+        assert_eq!(result, 80.0);
+        assert_ne!(result, sorted_order_value);
+    }
+
+    #[test]
+    fn test_jitter_single_sample_is_zero() {
+        assert_eq!(jitter(&[42.0]), 0.0);
+    }
+
+    #[test]
+    fn test_jitter_empty_is_zero() {
+        assert_eq!(jitter(&[]), 0.0);
     }
 }
