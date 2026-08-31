@@ -1,18 +1,50 @@
+use std::io;
 use std::io::ErrorKind;
-use std::net::{TcpStream, ToSocketAddrs};
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Instant;
 
-use crate::{PingOptions, PingResult, Pinger};
+use crate::{PingCreationError, PingMode, PingOptions, PingResult, Pinger};
 
 pub struct TcpPinger {
     options: PingOptions,
+    allow_rst: bool,
+    port: u16,
+}
+
+impl TcpPinger {
+    /// Resolve the target once, up front, so that a bad hostname surfaces as an error
+    /// from `start` rather than as an endless stream of failed pings.
+    fn resolve(&self) -> Result<SocketAddr, PingCreationError> {
+        let hostname = self.options.target.to_string();
+        let socket_str = format!("{hostname}:{}", self.port);
+        socket_str
+            .to_socket_addrs()
+            .map_err(|err| PingCreationError::HostnameError {
+                hostname: hostname.clone(),
+                err,
+            })?
+            .next()
+            .ok_or_else(|| PingCreationError::HostnameError {
+                hostname,
+                err: io::Error::other("name resolved to no addresses"),
+            })
+    }
 }
 
 impl Pinger for TcpPinger {
-    fn from_options(options: PingOptions) -> Result<Self, crate::PingCreationError> {
-        Ok(TcpPinger { options })
+    fn from_options(options: PingOptions) -> Result<Self, PingCreationError> {
+        match options.mode {
+            PingMode::TCP { allow_rst, port } => Ok(TcpPinger {
+                allow_rst,
+                port: port.unwrap_or(80),
+                options,
+            }),
+            PingMode::ICMP => Err(PingCreationError::InternalError(
+                "ICMP ping options passed to TcpPinger".to_string(),
+            )),
+        }
     }
 
     fn parse_fn(&self) -> fn(String) -> Option<PingResult> {
@@ -23,47 +55,30 @@ impl Pinger for TcpPinger {
         ("tcp", vec![]) // unused
     }
 
-    fn start(&self) -> Result<mpsc::Receiver<PingResult>, crate::PingCreationError> {
+    fn start(&self) -> Result<mpsc::Receiver<PingResult>, PingCreationError> {
         let (tx, rx) = mpsc::channel();
-        let options = self.options.clone();
+        let addr = self.resolve()?;
+        let interval = self.options.interval;
+        let allow_rst = self.allow_rst;
 
         thread::spawn(move || {
-            for _ in 0..=i32::MAX {
-                let port = options.port.unwrap_or(80);
-                let socket_str = format!("{}:{}", options.target, port);
-                let addr = match socket_str.to_socket_addrs() {
-                    Ok(mut addrs) => match addrs.next() {
-                        Some(a) => a,
-                        None => {
-                            let _ = tx
-                                .send(PingResult::Unknown("Unable to resolve address".to_string()));
-                            continue;
-                        }
-                    },
-                    Err(e) => {
-                        let _ = tx.send(PingResult::Unknown(format!("Resolve error: {}", e)));
-                        continue;
+            loop {
+                let start = Instant::now();
+                let sent = match TcpStream::connect_timeout(&addr, interval) {
+                    Ok(_) => tx.send(PingResult::Pong(start.elapsed(), addr.to_string())),
+                    // A RST means the host is up, it just isn't listening on this port
+                    Err(e) if allow_rst && e.kind() == ErrorKind::ConnectionRefused => {
+                        tx.send(PingResult::Pong(start.elapsed(), addr.to_string()))
                     }
+                    Err(_) => tx.send(PingResult::Timeout(addr.to_string())),
                 };
 
-                let start = Instant::now();
-                match TcpStream::connect_timeout(&addr, options.interval) {
-                    Ok(_) => {
-                        let _ = tx.send(PingResult::Pong(start.elapsed(), addr.to_string()));
-                    }
-                    Err(e) => {
-                        //println!("DEBUG: error kind for {}: {:?}", addr, e.kind());
-                        let is_rst = matches!(e.kind(), ErrorKind::ConnectionRefused);
-                        if is_rst && options.allow_rst {
-                            // treat RST as pong default behavior
-                            let _ = tx.send(PingResult::Pong(start.elapsed(), addr.to_string()));
-                        } else {
-                            let _ = tx.send(PingResult::Timeout(addr.to_string()));
-                        }
-                    }
+                // The receiver has hung up, so nothing will read any further pings.
+                if sent.is_err() {
+                    break;
                 }
 
-                thread::sleep(options.interval);
+                thread::sleep(interval);
             }
         });
 

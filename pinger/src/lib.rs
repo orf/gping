@@ -43,15 +43,28 @@ mod test;
 
 mod tcp;
 
+/// How to probe the target. The TCP options only apply to TCP pings, so they live
+/// inside that variant rather than sitting unused alongside an ICMP ping.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum PingMode {
+    #[default]
+    ICMP,
+    TCP {
+        /// Count a connection refused (RST) as a successful pong: the host answered,
+        /// it just isn't listening on this port.
+        allow_rst: bool,
+        /// Port to connect to; defaults to 80 when unset.
+        port: Option<u16>,
+    },
+}
+
 #[derive(Debug, Clone)]
 pub struct PingOptions {
     pub target: Target,
     pub interval: Duration,
     pub interface: Option<String>,
     pub raw_arguments: Option<Vec<String>>,
-    pub tcping: bool,      // use TCP instead of ICMP
-    pub allow_rst: bool,   // We can take leverage connection refused as a valid pong in some case
-    pub port: Option<u16>, // optional port for TCP ping
+    pub mode: PingMode,
 }
 
 impl PingOptions {
@@ -73,9 +86,7 @@ impl PingOptions {
             interval,
             interface,
             raw_arguments: None,
-            tcping: false,
-            allow_rst: false,
-            port: Some(80),
+            mode: PingMode::default(),
         }
     }
     pub fn new(target: impl ToString, interval: Duration, interface: Option<String>) -> Self {
@@ -89,18 +100,9 @@ impl PingOptions {
     pub fn new_ipv6(target: impl ToString, interval: Duration, interface: Option<String>) -> Self {
         Self::from_target(Target::new_ipv6(target), interval, interface)
     }
-    /// Enable or disable TCP ping
-    pub fn with_tcping(mut self, tcping: bool) -> Self {
-        self.tcping = tcping;
-        self
-    }
-    /// Allow or disallow treating RST as a valid response
-    pub fn with_allow_rst(mut self, allow: bool) -> Self {
-        self.allow_rst = allow;
-        self
-    }
-    pub fn with_port(mut self, port: u16) -> Self {
-        self.port = Some(port);
+    /// Select how the target is probed; see [`PingMode`].
+    pub fn with_mode(mut self, mode: PingMode) -> Self {
+        self.mode = mode;
         self
     }
 }
@@ -214,8 +216,17 @@ pub enum PingCreationError {
     #[error("Installed ping is not supported: {alternative}")]
     NotSupported { alternative: String },
 
-    #[error("Invalid or unresolvable hostname {0}")]
-    HostnameError(String),
+    #[error("Invalid or unresolvable hostname {hostname}: {err}")]
+    HostnameError {
+        hostname: String,
+        // Not #[from]: SpawnError already provides the From<io::Error> impl, and two
+        // of them on one enum would collide.
+        #[source]
+        err: io::Error,
+    },
+
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 pub fn get_pinger(options: PingOptions) -> std::result::Result<Arc<dyn Pinger>, PingCreationError> {
@@ -227,7 +238,7 @@ pub fn get_pinger(options: PingOptions) -> std::result::Result<Arc<dyn Pinger>, 
         return Ok(Arc::new(fake::FakePinger::from_options(options)?));
     }
 
-    if options.tcping {
+    if matches!(options.mode, PingMode::TCP { .. }) {
         return Ok(Arc::new(crate::tcp::TcpPinger::from_options(options)?));
     }
 

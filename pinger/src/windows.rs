@@ -52,7 +52,10 @@ impl Pinger for WindowsPinger {
                         .collect()
                 };
                 if selected_ips.is_empty() {
-                    return Err(PingCreationError::HostnameError(domain.clone()).into());
+                    return Err(PingCreationError::HostnameError {
+                        hostname: domain.clone(),
+                        err: std::io::Error::other("no IPs found"),
+                    });
                 }
                 selected_ips[0].ip()
             }
