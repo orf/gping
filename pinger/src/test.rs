@@ -95,8 +95,8 @@ mod tests {
             parsed.len(),
             expected.len(),
             "Parsed: {:?}, Expected: {:?}",
-            &parsed,
-            &expected
+            parsed,
+            expected
         );
 
         for (idx, (output, expected)) in parsed.into_iter().zip(expected).enumerate() {
