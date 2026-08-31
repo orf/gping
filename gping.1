@@ -4,7 +4,7 @@
 .SH NAME
 gping \- Ping, but with a graph.
 .SH SYNOPSIS
-\fBgping\fR [\fB\-\-cmd\fR] [\fB\-n\fR|\fB\-\-watch\-interval\fR] [\fB\-b\fR|\fB\-\-buffer\fR] [\fB\-4 \fR] [\fB\-6 \fR] [\fB\-i\fR|\fB\-\-interface\fR] [\fB\-s\fR|\fB\-\-simple\-graphics\fR] [\fB\-\-vertical\-margin\fR] [\fB\-\-horizontal\-margin\fR] [\fB\-c\fR|\fB\-\-color\fR] [\fB\-\-clear\fR] [\fB\-\-ping\-args\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fIHOSTS_OR_COMMANDS\fR] 
+\fBgping\fR [\fB\-\-cmd\fR] [\fB\-n\fR|\fB\-\-watch\-interval\fR] [\fB\-b\fR|\fB\-\-buffer\fR] [\fB\-4 \fR] [\fB\-6 \fR] [\fB\-i\fR|\fB\-\-interface\fR] [\fB\-s\fR|\fB\-\-simple\-graphics\fR] [\fB\-\-vertical\-margin\fR] [\fB\-\-horizontal\-margin\fR] [\fB\-\-ymin\fR] [\fB\-\-ymax\fR] [\fB\-0 \fR] [\fB\-c\fR|\fB\-\-color\fR] [\fB\-\-clear\fR] [\fB\-\-ping\-args\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fIHOSTS_OR_COMMANDS\fR] 
 .SH DESCRIPTION
 Ping, but with a graph.
 .SH OPTIONS
@@ -35,6 +35,15 @@ Vertical margin around the graph (top and bottom)
 .TP
 \fB\-\-horizontal\-margin\fR \fI<HORIZONTAL_MARGIN>\fR [default: 0]
 Horizontal margin around the graph (left and right)
+.TP
+\fB\-\-ymin\fR \fI<YMIN>\fR
+Set vertical axis min (ms)
+.TP
+\fB\-\-ymax\fR \fI<YMAX>\fR
+Set vertical axis max (ms)
+.TP
+\fB\-0\fR
+Equivalent to \-\-ymin=0
 .TP
 \fB\-c\fR, \fB\-\-color\fR \fI<color>\fR
 Assign color to a graph entry.
