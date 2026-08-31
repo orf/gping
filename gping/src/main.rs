@@ -16,13 +16,17 @@ use std::sync::{mpsc, Arc};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};
-use tui::backend::{Backend, CrosstermBackend};
+#[cfg(windows)]
+use tui::backend::Backend;
+use tui::backend::CrosstermBackend;
 use tui::crossterm::event::KeyModifiers;
+#[cfg(windows)]
+use tui::crossterm::terminal::SetSize;
 use tui::crossterm::terminal::{Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen};
 use tui::crossterm::{
     event::{self, Event as CEvent, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, SetSize},
+    terminal::{disable_raw_mode, enable_raw_mode},
 };
 use tui::layout::{Constraint, Direction, Flex, Layout};
 use tui::style::{Color, Style};
@@ -504,16 +508,20 @@ fn main() -> Result<()> {
     enable_raw_mode()?;
     let stdout = io::stdout();
     let mut backend = CrosstermBackend::new(BufWriter::with_capacity(1024 * 1024 * 4, stdout));
-    let rect = backend.size()?;
+    // We render into the normal screen buffer rather than the alternate screen, and on
+    // Windows that means resizing the console screen buffer to match the window. On
+    // every other platform `SetSize` is just the XTWINOPS escape sequence asking the
+    // terminal to resize itself to the size it has already reported to us: a no-op at
+    // best, and at worst a "a program has tried to resize the window" prompt from
+    // terminals that ask before honouring it.
+    #[cfg(windows)]
+    {
+        let rect = backend.size()?;
+        execute!(backend, SetSize(rect.width, rect.height))?;
+    }
 
     if args.clear {
-        execute!(
-            backend,
-            SetSize(rect.width, rect.height),
-            EnterAlternateScreen,
-        )?;
-    } else {
-        execute!(backend, SetSize(rect.width, rect.height),)?;
+        execute!(backend, EnterAlternateScreen)?;
     }
 
     let mut terminal = Terminal::new(backend)?;
