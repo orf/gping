@@ -64,16 +64,16 @@ impl Pinger for LinuxPinger {
         match self {
             // Alpine doesn't support timeout notifications, so we don't add the -O flag here.
             LinuxPinger::BusyBox(options) => {
-                let cmd = if options.target.is_ipv6() {
-                    "ping6"
-                } else {
-                    "ping"
-                };
+                let cmd = "ping";
 
                 let mut args = vec![
                     options.target.to_string(),
                     format!("-i{:.1}", options.interval.as_millis() as f32 / 1_000_f32),
                 ];
+
+                if options.target.is_ipv6() {
+                    args.push("-6".to_string());
+                }
 
                 if let Some(raw_args) = &options.raw_arguments {
                     args.extend(raw_args.iter().cloned());
@@ -82,11 +82,7 @@ impl Pinger for LinuxPinger {
                 (cmd, args)
             }
             LinuxPinger::IPTools(options) => {
-                let cmd = if options.target.is_ipv6() {
-                    "ping6"
-                } else {
-                    "ping"
-                };
+                let cmd = "ping";
 
                 // The -O flag ensures we "no answer yet" messages from ping
                 // See https://superuser.com/questions/270083/linux-ping-show-time-out
@@ -94,6 +90,11 @@ impl Pinger for LinuxPinger {
                     "-O".to_string(),
                     format!("-i{:.1}", options.interval.as_millis() as f32 / 1_000_f32),
                 ];
+
+                if options.target.is_ipv6() {
+                    args.push("-6".to_string());
+                }
+
                 if let Some(interface) = &options.interface {
                     args.push("-I".into());
                     args.push(interface.clone());
