@@ -1,6 +1,6 @@
 [package]
 name = "gping"
-version = "1.20.4"
+version = "1.21.0"
 authors = ["Tom Forbes <tom@tomforb.es>"]
 edition = "2018"
 repository = "https://github.com/orf/gping"
@@ -9,7 +9,7 @@ description = "Ping, but with a graph."
 readme = "../readme.md"
 
 [dependencies]
-pinger = { version = "^2.1.4", path = "../pinger" }
+pinger = { version = "^2.2.0", path = "../pinger" }
 tui = { package = "ratatui", version = "0.30.2", features = ["crossterm"], default-features = false }
 anyhow = "1.0.101"
 chrono = "0.4.43"
