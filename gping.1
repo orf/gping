@@ -48,8 +48,18 @@ Equivalent to \-\-ymin=0
 \fB\-\-tcp\fR
 Use TCP pings instead of ICMP
 .TP
-\fB\-\-tcp\-rst\fR
-Count a connection refused (RST) as a successful ping: the host answered, it just isn\*(Aqt listening on the port
+\fB\-\-tcp\-rst\fR \fI<TCP_RST>\fR [default: pong]
+How to treat a connection refused (RST) when TCP pinging
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+pong: Count it as a successful ping: the host answered, it just isn\*(Aqt listening
+.IP \(bu 2
+drop: Count it as a failed ping
+.RE
 .TP
 \fB\-\-tcp\-port\fR \fI<TCP_PORT>\fR [default: 80]
 Port to connect to (only used for TCP pings)
@@ -73,7 +83,7 @@ Clear the graph from the terminal after closing the program
 Extra arguments to pass to `ping`. These are platform dependent
 .TP
 \fB\-h\fR, \fB\-\-help\fR
-Print help
+Print help (see a summary with \*(Aq\-h\*(Aq)
 .TP
 [\fIHOSTS_OR_COMMANDS\fR]
 Hosts or IPs to ping, or commands to run if \-\-cmd is provided. Can use cloud shorthands like aws:eu\-west\-1

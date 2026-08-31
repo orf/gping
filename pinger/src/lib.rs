@@ -43,6 +43,21 @@ mod test;
 
 mod tcp;
 
+/// What a connection refused (RST) means for a TCP ping.
+///
+/// An RST *is* a response: the host answered, it just isn't listening on that port,
+/// and the time it took to arrive is a valid round-trip measurement. That differs
+/// from a real timeout, where nothing came back at all.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum RstBehaviour {
+    /// Record the RST as a pong, with the round-trip time it took to arrive.
+    #[default]
+    Pong,
+    /// Treat the RST as a failed ping, the same as no response at all. Useful when
+    /// you care whether a service is actually listening, not whether the host is up.
+    Drop,
+}
+
 /// How to probe the target. The TCP options only apply to TCP pings, so they live
 /// inside that variant rather than sitting unused alongside an ICMP ping.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -50,9 +65,8 @@ pub enum PingMode {
     #[default]
     ICMP,
     TCP {
-        /// Count a connection refused (RST) as a successful pong: the host answered,
-        /// it just isn't listening on this port.
-        allow_rst: bool,
+        /// How to treat a connection refused; see [`RstBehaviour`].
+        rst: RstBehaviour,
         /// Port to connect to; defaults to 80 when unset.
         port: Option<u16>,
     },

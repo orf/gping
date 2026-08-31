@@ -1,4 +1,4 @@
-use pinger::{ping, PingMode, PingOptions};
+use pinger::{ping, PingMode, PingOptions, RstBehaviour};
 use std::env;
 use std::time::Duration;
 
@@ -17,7 +17,7 @@ fn main() {
     };
 
     let opts = PingOptions::new(host, Duration::from_secs(1), None).with_mode(PingMode::TCP {
-        allow_rst: false, // treat RST as a timeout rather than a pong
+        rst: RstBehaviour::Pong,
         port: Some(port),
     });
 

@@ -101,10 +101,9 @@ struct Args {
     #[arg(long, default_value_t = false)]
     tcp: bool,
 
-    /// Count a connection refused (RST) as a successful ping: the host answered, it
-    /// just isn't listening on the port.
-    #[arg(long, default_value_t = false, requires = "tcp")]
-    tcp_rst: bool,
+    /// How to treat a connection refused (RST) when TCP pinging
+    #[arg(long, value_enum, default_value_t = RstBehaviour::Pong, requires = "tcp")]
+    tcp_rst: RstBehaviour,
 
     /// Port to connect to (only used for TCP pings)
     #[arg(long, default_value_t = 80, requires = "tcp")]
@@ -137,6 +136,25 @@ following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta',
     /// Extra arguments to pass to `ping`. These are platform dependent.
     #[arg(long, allow_hyphen_values = true, num_args = 0.., conflicts_with="cmd")]
     ping_args: Option<Vec<String>>,
+}
+
+/// Mirrors [`pinger::RstBehaviour`] so the choice can be parsed by clap without the
+/// pinger crate having to depend on it.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, clap::ValueEnum)]
+enum RstBehaviour {
+    /// Count it as a successful ping: the host answered, it just isn't listening
+    Pong,
+    /// Count it as a failed ping
+    Drop,
+}
+
+impl From<RstBehaviour> for pinger::RstBehaviour {
+    fn from(value: RstBehaviour) -> Self {
+        match value {
+            RstBehaviour::Pong => pinger::RstBehaviour::Pong,
+            RstBehaviour::Drop => pinger::RstBehaviour::Drop,
+        }
+    }
 }
 
 struct App {
@@ -492,7 +510,7 @@ fn main() -> Result<()> {
             }
             if args.tcp {
                 ping_opts = ping_opts.with_mode(PingMode::TCP {
-                    allow_rst: args.tcp_rst,
+                    rst: args.tcp_rst.into(),
                     port: Some(args.tcp_port),
                 });
             }

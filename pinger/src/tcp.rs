@@ -5,11 +5,11 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Instant;
 
-use crate::{PingCreationError, PingMode, PingOptions, PingResult, Pinger};
+use crate::{PingCreationError, PingMode, PingOptions, PingResult, Pinger, RstBehaviour};
 
 pub struct TcpPinger {
     options: PingOptions,
-    allow_rst: bool,
+    rst: RstBehaviour,
     port: u16,
 }
 
@@ -36,8 +36,8 @@ impl TcpPinger {
 impl Pinger for TcpPinger {
     fn from_options(options: PingOptions) -> Result<Self, PingCreationError> {
         match options.mode {
-            PingMode::TCP { allow_rst, port } => Ok(TcpPinger {
-                allow_rst,
+            PingMode::TCP { rst, port } => Ok(TcpPinger {
+                rst,
                 port: port.unwrap_or(80),
                 options,
             }),
@@ -59,7 +59,7 @@ impl Pinger for TcpPinger {
         let (tx, rx) = mpsc::channel();
         let addr = self.resolve()?;
         let interval = self.options.interval;
-        let allow_rst = self.allow_rst;
+        let rst = self.rst;
 
         thread::spawn(move || {
             loop {
@@ -67,7 +67,10 @@ impl Pinger for TcpPinger {
                 let sent = match TcpStream::connect_timeout(&addr, interval) {
                     Ok(_) => tx.send(PingResult::Pong(start.elapsed(), addr.to_string())),
                     // A RST means the host is up, it just isn't listening on this port
-                    Err(e) if allow_rst && e.kind() == ErrorKind::ConnectionRefused => {
+                    Err(e)
+                        if rst == RstBehaviour::Pong
+                            && e.kind() == ErrorKind::ConnectionRefused =>
+                    {
                         tx.send(PingResult::Pong(start.elapsed(), addr.to_string()))
                     }
                     Err(_) => tx.send(PingResult::Timeout(addr.to_string())),
