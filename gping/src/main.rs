@@ -3,7 +3,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use chrono::prelude::*;
 use clap::{CommandFactory, Parser};
 use itertools::{Itertools, MinMaxResult};
-use pinger::{ping, PingOptions, PingResult};
+use pinger::{ping, PingMode, PingOptions, PingResult};
 use std::io;
 use std::io::BufWriter;
 use std::iter;
@@ -101,6 +101,18 @@ struct Args {
     #[arg(short = '0', help = "Equivalent to --ymin=0", conflicts_with = "ymin")]
     ymin_zero: bool,
 
+    /// Use TCP pings instead of ICMP
+    #[arg(long, default_value_t = false)]
+    tcp: bool,
+
+    /// How to treat a connection refused (RST) when TCP pinging
+    #[arg(long, value_enum, default_value_t = RstBehaviour::Pong, requires = "tcp")]
+    tcp_rst: RstBehaviour,
+
+    /// Port to connect to (only used for TCP pings)
+    #[arg(long, default_value_t = 80, requires = "tcp")]
+    tcp_port: u16,
+
     #[arg(
         name = "color",
         short = 'c',
@@ -128,6 +140,25 @@ following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta',
     /// Extra arguments to pass to `ping`. These are platform dependent.
     #[arg(long, allow_hyphen_values = true, num_args = 0.., conflicts_with="cmd")]
     ping_args: Option<Vec<String>>,
+}
+
+/// Mirrors [`pinger::RstBehaviour`] so the choice can be parsed by clap without the
+/// pinger crate having to depend on it.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, clap::ValueEnum)]
+enum RstBehaviour {
+    /// Count it as a successful ping: the host answered, it just isn't listening
+    Pong,
+    /// Count it as a failed ping
+    Drop,
+}
+
+impl From<RstBehaviour> for pinger::RstBehaviour {
+    fn from(value: RstBehaviour) -> Self {
+        match value {
+            RstBehaviour::Pong => pinger::RstBehaviour::Pong,
+            RstBehaviour::Drop => pinger::RstBehaviour::Drop,
+        }
+    }
 }
 
 struct App {
@@ -487,10 +518,16 @@ fn main() -> Result<()> {
             } else {
                 PingOptions::new(host_or_cmd, interval, interface.clone())
             };
+
             if let Some(ping_args) = &ping_args {
                 ping_opts = ping_opts.with_raw_arguments(ping_args.clone());
             }
-
+            if args.tcp {
+                ping_opts = ping_opts.with_mode(PingMode::TCP {
+                    rst: args.tcp_rst.into(),
+                    port: Some(args.tcp_port),
+                });
+            }
             threads.push(start_ping_thread(
                 ping_opts,
                 host_id,

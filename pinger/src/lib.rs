@@ -41,12 +41,44 @@ mod target;
 #[cfg(test)]
 mod test;
 
+mod tcp;
+
+/// What a connection refused (RST) means for a TCP ping.
+///
+/// An RST *is* a response: the host answered, it just isn't listening on that port,
+/// and the time it took to arrive is a valid round-trip measurement. That differs
+/// from a real timeout, where nothing came back at all.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum RstBehaviour {
+    /// Record the RST as a pong, with the round-trip time it took to arrive.
+    #[default]
+    Pong,
+    /// Treat the RST as a failed ping, the same as no response at all. Useful when
+    /// you care whether a service is actually listening, not whether the host is up.
+    Drop,
+}
+
+/// How to probe the target. The TCP options only apply to TCP pings, so they live
+/// inside that variant rather than sitting unused alongside an ICMP ping.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum PingMode {
+    #[default]
+    ICMP,
+    TCP {
+        /// How to treat a connection refused; see [`RstBehaviour`].
+        rst: RstBehaviour,
+        /// Port to connect to; defaults to 80 when unset.
+        port: Option<u16>,
+    },
+}
+
 #[derive(Debug, Clone)]
 pub struct PingOptions {
     pub target: Target,
     pub interval: Duration,
     pub interface: Option<String>,
     pub raw_arguments: Option<Vec<String>>,
+    pub mode: PingMode,
 }
 
 impl PingOptions {
@@ -68,6 +100,7 @@ impl PingOptions {
             interval,
             interface,
             raw_arguments: None,
+            mode: PingMode::default(),
         }
     }
     pub fn new(target: impl ToString, interval: Duration, interface: Option<String>) -> Self {
@@ -80,6 +113,11 @@ impl PingOptions {
 
     pub fn new_ipv6(target: impl ToString, interval: Duration, interface: Option<String>) -> Self {
         Self::from_target(Target::new_ipv6(target), interval, interface)
+    }
+    /// Select how the target is probed; see [`PingMode`].
+    pub fn with_mode(mut self, mode: PingMode) -> Self {
+        self.mode = mode;
+        self
     }
 }
 
@@ -192,8 +230,17 @@ pub enum PingCreationError {
     #[error("Installed ping is not supported: {alternative}")]
     NotSupported { alternative: String },
 
-    #[error("Invalid or unresolvable hostname {0}")]
-    HostnameError(String),
+    #[error("Invalid or unresolvable hostname {hostname}: {err}")]
+    HostnameError {
+        hostname: String,
+        // Not #[from]: SpawnError already provides the From<io::Error> impl, and two
+        // of them on one enum would collide.
+        #[source]
+        err: io::Error,
+    },
+
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 pub fn get_pinger(options: PingOptions) -> std::result::Result<Arc<dyn Pinger>, PingCreationError> {
@@ -203,6 +250,10 @@ pub fn get_pinger(options: PingOptions) -> std::result::Result<Arc<dyn Pinger>, 
         .unwrap_or_default()
     {
         return Ok(Arc::new(fake::FakePinger::from_options(options)?));
+    }
+
+    if matches!(options.mode, PingMode::TCP { .. }) {
+        return Ok(Arc::new(crate::tcp::TcpPinger::from_options(options)?));
     }
 
     #[cfg(windows)]

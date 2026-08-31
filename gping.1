@@ -4,7 +4,7 @@
 .SH NAME
 gping \- Ping, but with a graph.
 .SH SYNOPSIS
-\fBgping\fR [\fB\-\-cmd\fR] [\fB\-n\fR|\fB\-\-watch\-interval\fR] [\fB\-b\fR|\fB\-\-buffer\fR] [\fB\-4 \fR] [\fB\-6 \fR] [\fB\-i\fR|\fB\-\-interface\fR] [\fB\-s\fR|\fB\-\-simple\-graphics\fR] [\fB\-\-vertical\-margin\fR] [\fB\-\-horizontal\-margin\fR] [\fB\-\-ymin\fR] [\fB\-\-ymax\fR] [\fB\-0 \fR] [\fB\-c\fR|\fB\-\-color\fR] [\fB\-\-clear\fR] [\fB\-\-ping\-args\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fIHOSTS_OR_COMMANDS\fR] 
+\fBgping\fR [\fB\-\-cmd\fR] [\fB\-n\fR|\fB\-\-watch\-interval\fR] [\fB\-b\fR|\fB\-\-buffer\fR] [\fB\-4 \fR] [\fB\-6 \fR] [\fB\-i\fR|\fB\-\-interface\fR] [\fB\-s\fR|\fB\-\-simple\-graphics\fR] [\fB\-\-vertical\-margin\fR] [\fB\-\-horizontal\-margin\fR] [\fB\-\-ymin\fR] [\fB\-\-ymax\fR] [\fB\-0 \fR] [\fB\-\-tcp\fR] [\fB\-\-tcp\-rst\fR] [\fB\-\-tcp\-port\fR] [\fB\-c\fR|\fB\-\-color\fR] [\fB\-\-clear\fR] [\fB\-\-ping\-args\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fIHOSTS_OR_COMMANDS\fR] 
 .SH DESCRIPTION
 Ping, but with a graph.
 .SH OPTIONS
@@ -45,6 +45,25 @@ Set vertical axis max (ms)
 \fB\-0\fR
 Equivalent to \-\-ymin=0
 .TP
+\fB\-\-tcp\fR
+Use TCP pings instead of ICMP
+.TP
+\fB\-\-tcp\-rst\fR \fI<TCP_RST>\fR [default: pong]
+How to treat a connection refused (RST) when TCP pinging
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+pong: Count it as a successful ping: the host answered, it just isn\*(Aqt listening
+.IP \(bu 2
+drop: Count it as a failed ping
+.RE
+.TP
+\fB\-\-tcp\-port\fR \fI<TCP_PORT>\fR [default: 80]
+Port to connect to (only used for TCP pings)
+.TP
 \fB\-c\fR, \fB\-\-color\fR \fI<color>\fR
 Assign color to a graph entry.
 
@@ -64,7 +83,7 @@ Clear the graph from the terminal after closing the program
 Extra arguments to pass to `ping`. These are platform dependent
 .TP
 \fB\-h\fR, \fB\-\-help\fR
-Print help
+Print help (see a summary with \*(Aq\-h\*(Aq)
 .TP
 [\fIHOSTS_OR_COMMANDS\fR]
 Hosts or IPs to ping, or commands to run if \-\-cmd is provided. Can use cloud shorthands like aws:eu\-west\-1
