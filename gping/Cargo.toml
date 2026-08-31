@@ -11,7 +11,6 @@ readme = "../readme.md"
 [dependencies]
 pinger = { version = "^2.1.4", path = "../pinger" }
 tui = { package = "ratatui", version = "0.30.2", features = ["crossterm"], default-features = false }
-#crossterm = "0.29.0"
 anyhow = "1.0.101"
 chrono = "0.4.43"
 itertools = "0.15.0"
