@@ -176,7 +176,7 @@ impl App {
         let mut max = ymax.unwrap_or(data_max + (data_max * 10_f64) / 100_f64);
 
         // Reject negative bounds, and never let the axis collapse to zero height (no
-        // data yet, or --ymin and --ymax given the same value).
+        // data yet, or --ymin pinned above everything we have measured so far).
         min = min.max(0_f64);
         if max <= min {
             max = min + 1000_f64;
@@ -380,6 +380,17 @@ fn ms_to_us_option(ms: Option<u64>) -> Option<f64> {
     ms.map(|x| 1000.0 * (x as f64))
 }
 
+// An inverted or empty vertical range leaves us nothing sensible to draw, so reject it
+// up front rather than quietly picking some other window to display.
+fn validate_yrange(ymin: Option<u64>, ymax: Option<u64>) -> Result<()> {
+    if let (Some(min), Some(max)) = (ymin, ymax) {
+        if min >= max {
+            bail!("Invalid vertical axis range: the minimum ({min}ms) must be less than the maximum ({max}ms)");
+        }
+    }
+    Ok(())
+}
+
 fn generate_man_page(path: &Path) -> anyhow::Result<()> {
     let man = clap_mangen::Man::new(Args::command().version(None).long_version(None));
     let mut buffer: Vec<u8> = Default::default();
@@ -399,10 +410,9 @@ fn main() -> Result<()> {
         return Err(anyhow!("At least one host or command must be given (i.e gping google.com). Use --help for a full list of arguments."));
     }
 
-    let yrange = (
-        ms_to_us_option(if args.ymin_zero { Some(0) } else { args.ymin }),
-        ms_to_us_option(args.ymax),
-    );
+    let ymin = if args.ymin_zero { Some(0) } else { args.ymin };
+    validate_yrange(ymin, args.ymax)?;
+    let yrange = (ms_to_us_option(ymin), ms_to_us_option(args.ymax));
 
     let mut data = vec![];
 
@@ -705,12 +715,26 @@ mod tests {
         assert_eq!(app.y_axis_bounds(), [2_000.0, 8_000.0]);
     }
 
-    // A zero-height axis would make the graph unrenderable, so degenerate ranges get
-    // 1ms of headroom.
+    // --ymin can sit above every sample we have, which would otherwise give an
+    // upside-down axis: the pinned bound wins and the axis keeps 1ms of height.
     #[test]
-    fn test_degenerate_y_range_is_widened() {
-        let app = app_with(&[5_000.0], (Some(5_000.0), Some(5_000.0)));
-        assert_eq!(app.y_axis_bounds(), [5_000.0, 6_000.0]);
+    fn test_y_min_pinned_above_the_data() {
+        let app = app_with(&[1_000.0, 2_000.0], (Some(50_000.0), None));
+        assert_eq!(app.y_axis_bounds(), [50_000.0, 51_000.0]);
+    }
+
+    #[test]
+    fn test_an_inverted_or_empty_yrange_is_rejected() {
+        assert!(validate_yrange(Some(10), Some(2)).is_err());
+        assert!(validate_yrange(Some(5), Some(5)).is_err());
+    }
+
+    #[test]
+    fn test_a_valid_yrange_is_accepted() {
+        assert!(validate_yrange(Some(0), Some(10)).is_ok());
+        assert!(validate_yrange(Some(10), None).is_ok());
+        assert!(validate_yrange(None, Some(10)).is_ok());
+        assert!(validate_yrange(None, None).is_ok());
     }
 
     // The labels are spread from the bottom row of the graph to the top one, so the
