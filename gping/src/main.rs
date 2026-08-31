@@ -490,10 +490,10 @@ fn main() -> Result<()> {
                 ping_opts = ping_opts.with_raw_arguments(ping_args.clone());
             }
             if args.tcping {
-              ping_opts = ping_opts
-                  .with_tcping(true)
-                  .with_port(args.port)
-                  .with_allow_rst(args.no_rst);
+                ping_opts = ping_opts
+                    .with_tcping(true)
+                    .with_port(args.port)
+                    .with_allow_rst(args.no_rst);
             }
             threads.push(start_ping_thread(
                 ping_opts,

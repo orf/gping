@@ -1,4 +1,3 @@
-
 use pinger::{ping, PingOptions};
 use std::env;
 use std::time::Duration;
@@ -18,8 +17,8 @@ fn main() {
     };
 
     let opts = PingOptions::new(host, Duration::from_secs(1), None)
-        .with_tcping(true)  // enable TCP ping
-        .with_port(port)    // set port
+        .with_tcping(true) // enable TCP ping
+        .with_port(port) // set port
         .with_allow_rst(false); // treat RST as pong
 
     let rx = ping(opts).expect("Failed to start TCP ping");
@@ -39,4 +38,3 @@ fn main() {
         }
     }
 }
-

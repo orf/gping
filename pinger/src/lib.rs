@@ -49,8 +49,8 @@ pub struct PingOptions {
     pub interval: Duration,
     pub interface: Option<String>,
     pub raw_arguments: Option<Vec<String>>,
-    pub tcping: bool,     // use TCP instead of ICMP
-    pub allow_rst: bool,  // We can take leverage connection refused as a valid pong in some case
+    pub tcping: bool,      // use TCP instead of ICMP
+    pub allow_rst: bool,   // We can take leverage connection refused as a valid pong in some case
     pub port: Option<u16>, // optional port for TCP ping
 }
 

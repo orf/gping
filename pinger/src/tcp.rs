@@ -1,9 +1,8 @@
+use std::io::ErrorKind;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::mpsc;
 use std::thread;
-use std::time::{Instant};
-use std::io::ErrorKind;
-
+use std::time::Instant;
 
 use crate::{PingOptions, PingResult, Pinger};
 
@@ -29,16 +28,15 @@ impl Pinger for TcpPinger {
         let options = self.options.clone();
 
         thread::spawn(move || {
-            for _ in 0.. {
+            for _ in 0..=i32::MAX {
                 let port = options.port.unwrap_or(80);
                 let socket_str = format!("{}:{}", options.target, port);
                 let addr = match socket_str.to_socket_addrs() {
                     Ok(mut addrs) => match addrs.next() {
                         Some(a) => a,
                         None => {
-                            let _ = tx.send(PingResult::Unknown(
-                                "Unable to resolve address".to_string()
-                            ));
+                            let _ = tx
+                                .send(PingResult::Unknown("Unable to resolve address".to_string()));
                             continue;
                         }
                     },
@@ -56,7 +54,8 @@ impl Pinger for TcpPinger {
                     Err(e) => {
                         //println!("DEBUG: error kind for {}: {:?}", addr, e.kind());
                         let is_rst = matches!(e.kind(), ErrorKind::ConnectionRefused);
-                        if is_rst && options.allow_rst { // treat RST as pong default behavior
+                        if is_rst && options.allow_rst {
+                            // treat RST as pong default behavior
                             let _ = tx.send(PingResult::Pong(start.elapsed(), addr.to_string()));
                         } else {
                             let _ = tx.send(PingResult::Timeout(addr.to_string()));
@@ -71,4 +70,3 @@ impl Pinger for TcpPinger {
         Ok(rx)
     }
 }
-
