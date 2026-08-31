@@ -22,8 +22,5 @@ jobs:
             gping ${{ steps.extract-version.outputs.VERSION }}
 
             Created by https://github.com/mislav/bump-homebrew-formula-action
-          # codeload serves the tarball directly; the github.com archive URL
-          # redirects with 303, which the action rejects (mislav/bump-homebrew-formula-action#340)
-          download-url: https://codeload.github.com/orf/gping/tar.gz/refs/tags/${{ github.ref_name }}
         env:
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
