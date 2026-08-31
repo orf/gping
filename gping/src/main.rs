@@ -130,8 +130,8 @@ following color names: 'black', 'red', 'green', 'yellow', 'blue', 'magenta',
 struct App {
     data: Vec<PlotData>,
     display_interval: chrono::Duration,
-    started:chrono::DateTime<Local>,
-    yrange: (Option<f64>, Option<f64>)
+    started: chrono::DateTime<Local>,
+    yrange: (Option<f64>, Option<f64>),
 }
 
 impl App {
@@ -140,7 +140,7 @@ impl App {
             data,
             display_interval: chrono::Duration::from_std(Duration::from_secs(buffer)).unwrap(),
             started: Local::now(),
-            yrange: yrange
+            yrange,
         }
     }
 
@@ -163,19 +163,13 @@ impl App {
             .minmax()
         {
             MinMaxResult::NoElements => (f64::INFINITY, 0_f64),
-            MinMaxResult::OneElement(elm) => (
-                ymin.unwrap_or(elm),
-                elm
-            ),
-            MinMaxResult::MinMax(min, max) => (
-                ymin.unwrap_or(min),
-                ymax.unwrap_or(max),
-            )
+            MinMaxResult::OneElement(elm) => (ymin.unwrap_or(elm), elm),
+            MinMaxResult::MinMax(min, max) => (ymin.unwrap_or(min), ymax.unwrap_or(max)),
         };
 
         // Reject negative bounds
         // Show at least 1 ms of y-axis
-        if ymin != None {
+        if ymin.is_some() {
             min = min.clamp(0.0, f64::INFINITY);
             max = max.clamp(min + 1000.0, f64::INFINITY);
         }
@@ -376,10 +370,7 @@ fn get_host_ipaddr(host: &str, force_ipv4: bool, force_ipv6: bool) -> Result<Str
 // Convert milliseconds Option<u64>
 // to microseconds Option<f64>.
 fn ms_to_us_option(ms: Option<u64>) -> Option<f64> {
-    match ms {
-        None => None,
-        Some(x) => Some(1000.0 * (x as f64))
-    }
+    ms.map(|x| 1000.0 * (x as f64))
 }
 
 fn generate_man_page(path: &Path) -> anyhow::Result<()> {
@@ -402,8 +393,8 @@ fn main() -> Result<()> {
     }
 
     let yrange = (
-        ms_to_us_option(if args.ymin_zero {Some(0)} else {args.ymin}),
-        ms_to_us_option(args.ymax)
+        ms_to_us_option(if args.ymin_zero { Some(0) } else { args.ymin }),
+        ms_to_us_option(args.ymax),
     );
 
     let mut data = vec![];
