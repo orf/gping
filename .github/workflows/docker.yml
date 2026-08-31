@@ -14,7 +14,7 @@ on:
     tags:
       - gping-v*
     branches:
-      - master
+      - main
   workflow_dispatch:
 
 env:

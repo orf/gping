@@ -3,7 +3,7 @@ on:
     tags:
       - gping-v*
     branches:
-      - master
+      - main
   pull_request:
   workflow_dispatch:
 
