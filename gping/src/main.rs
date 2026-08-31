@@ -8,7 +8,6 @@ use std::io;
 use std::io::BufWriter;
 use std::iter;
 use std::net::{IpAddr, ToSocketAddrs};
-use std::ops::Add;
 use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -152,9 +151,10 @@ impl App {
     fn y_axis_bounds(&self) -> [f64; 2] {
         // Find the Y axis bounds for our chart.
         // This is trickier than the x-axis. We iterate through all our PlotData structs
-        // and find the min/max of all the values. Then we add a 10% buffer to them.
+        // and find the min/max of all the values, then add a 10% buffer to each end so
+        // the data doesn't sit right on the edge of the graph.
         let (ymin, ymax) = self.yrange;
-        let (mut min, mut max) = match self
+        let (data_min, data_max) = match self
             .data
             .iter()
             .flat_map(|b| b.data.as_slice())
@@ -162,22 +162,27 @@ impl App {
             .filter(|v| !v.is_nan())
             .minmax()
         {
-            MinMaxResult::NoElements => (f64::INFINITY, 0_f64),
-            MinMaxResult::OneElement(elm) => (ymin.unwrap_or(elm), elm),
-            MinMaxResult::MinMax(min, max) => (ymin.unwrap_or(min), ymax.unwrap_or(max)),
+            // Nothing has come back yet, so there is nothing to scale to.
+            MinMaxResult::NoElements => (0_f64, 0_f64),
+            MinMaxResult::OneElement(elm) => (elm, elm),
+            MinMaxResult::MinMax(min, max) => (min, max),
         };
 
-        // Reject negative bounds
-        // Show at least 1 ms of y-axis
-        if ymin.is_some() {
-            min = min.clamp(0.0, f64::INFINITY);
-            max = max.clamp(min + 1000.0, f64::INFINITY);
+        // A bound the user pinned with --ymin/--ymax is used verbatim. The buffer only
+        // makes sense for a bound we derived from the data: an explicit bound is a
+        // request for the axis to end exactly there, so padding it past the requested
+        // value would be wrong.
+        let mut min = ymin.unwrap_or(data_min - (data_min * 10_f64) / 100_f64);
+        let mut max = ymax.unwrap_or(data_max + (data_max * 10_f64) / 100_f64);
+
+        // Reject negative bounds, and never let the axis collapse to zero height (no
+        // data yet, or --ymin and --ymax given the same value).
+        min = min.max(0_f64);
+        if max <= min {
+            max = min + 1000_f64;
         }
 
-        // Add a 10% buffer to the top and bottom
-        let pos_margin = (max * 10_f64) / 100_f64;
-        let neg_margin = (min * 10_f64) / 100_f64;
-        [min - neg_margin, max + pos_margin]
+        [min, max]
     }
 
     fn x_axis_bounds(&self) -> [f64; 2] {
@@ -214,17 +219,19 @@ impl App {
 
     fn y_axis_labels(&self, bounds: [f64; 2]) -> Vec<Span<'_>> {
         // Create 7 labels for our y axis, based on the y-axis bounds we computed above.
-        let min = bounds[0];
-        let max = bounds[1];
-
+        // They are drawn evenly from the bottom row of the graph up to the top one, so
+        // the last label lands on the upper bound itself: the range is split into 6
+        // gaps, not 7. Splitting it into 7 puts every label below the value it is
+        // labelling, and makes the top of the axis read as 6/7ths of the real maximum.
+        let [min, max] = bounds;
         let difference = max - min;
         let num_labels = 7;
-        // Split difference into one chunk for each of the 7 labels
-        let increment = Duration::from_micros((difference / num_labels as f64) as u64);
-        let duration = Duration::from_micros(min as u64);
 
         (0..num_labels)
-            .map(|i| Span::raw(format!("{:?}", duration.add(increment * i))))
+            .map(|i| {
+                let value = min + (difference * i as f64) / (num_labels - 1) as f64;
+                Span::raw(format!("{:?}", Duration::from_micros(value as u64)))
+            })
             .collect()
     }
 }
@@ -634,4 +641,98 @@ fn main() -> Result<()> {
     };
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// An app holding a single host whose samples are the given microsecond values.
+    fn app_with(samples: &[f64], yrange: (Option<f64>, Option<f64>)) -> App {
+        let mut plot = PlotData::new("host".to_string(), 30, Style::default(), false);
+        let now = Local::now().timestamp_millis() as f64 / 1_000f64;
+        for (i, value) in samples.iter().enumerate() {
+            plot.data.push((now + i as f64, *value));
+        }
+        App::new(vec![plot], 30, yrange)
+    }
+
+    fn labels(app: &App, bounds: [f64; 2]) -> Vec<String> {
+        app.y_axis_labels(bounds)
+            .iter()
+            .map(|span| span.content.to_string())
+            .collect()
+    }
+
+    // --ymin/--ymax are exact requests: the 10% buffer we add to automatically derived
+    // bounds must not push the axis past what the user asked for.
+    #[test]
+    fn test_user_supplied_y_bounds_are_used_verbatim() {
+        let app = app_with(&[1_000.0, 9_000.0], (Some(0.0), Some(10_000.0)));
+        assert_eq!(app.y_axis_bounds(), [0.0, 10_000.0]);
+    }
+
+    #[test]
+    fn test_automatic_y_bounds_keep_their_buffer() {
+        let app = app_with(&[1_000.0, 2_000.0], (None, None));
+        assert_eq!(app.y_axis_bounds(), [900.0, 2_200.0]);
+    }
+
+    // Only the pinned end is fixed; the other one still scales to the data.
+    #[test]
+    fn test_one_sided_y_bounds() {
+        let app = app_with(&[1_000.0, 2_000.0], (Some(0.0), None));
+        assert_eq!(app.y_axis_bounds(), [0.0, 2_200.0]);
+
+        let app = app_with(&[1_000.0, 2_000.0], (None, Some(10_000.0)));
+        assert_eq!(app.y_axis_bounds(), [900.0, 10_000.0]);
+    }
+
+    #[test]
+    fn test_y_bounds_with_a_single_sample() {
+        let app = app_with(&[5_000.0], (Some(0.0), Some(10_000.0)));
+        assert_eq!(app.y_axis_bounds(), [0.0, 10_000.0]);
+    }
+
+    // Before any ping comes back there is nothing to scale to, so the axis has to fall
+    // back to something with a non-zero height rather than to infinities.
+    #[test]
+    fn test_y_bounds_without_any_data() {
+        let app = app_with(&[], (None, None));
+        assert_eq!(app.y_axis_bounds(), [0.0, 1_000.0]);
+
+        let app = app_with(&[], (Some(2_000.0), Some(8_000.0)));
+        assert_eq!(app.y_axis_bounds(), [2_000.0, 8_000.0]);
+    }
+
+    // A zero-height axis would make the graph unrenderable, so degenerate ranges get
+    // 1ms of headroom.
+    #[test]
+    fn test_degenerate_y_range_is_widened() {
+        let app = app_with(&[5_000.0], (Some(5_000.0), Some(5_000.0)));
+        assert_eq!(app.y_axis_bounds(), [5_000.0, 6_000.0]);
+    }
+
+    // The labels are spread from the bottom row of the graph to the top one, so the
+    // first has to be the lower bound and the last the upper bound.
+    #[test]
+    fn test_y_axis_labels_span_the_whole_range() {
+        let app = app_with(&[1_000.0, 9_000.0], (Some(0.0), Some(10_000.0)));
+        let bounds = app.y_axis_bounds();
+
+        assert_eq!(
+            labels(&app, bounds),
+            ["0ns", "1.666ms", "3.333ms", "5ms", "6.666ms", "8.333ms", "10ms"]
+        );
+    }
+
+    #[test]
+    fn test_y_axis_labels_start_at_a_non_zero_minimum() {
+        let app = app_with(&[3_000.0, 9_000.0], (Some(2_000.0), Some(8_000.0)));
+        let bounds = app.y_axis_bounds();
+        let labels = labels(&app, bounds);
+
+        assert_eq!(labels.first().unwrap(), "2ms");
+        assert_eq!(labels.last().unwrap(), "8ms");
+    }
 }
