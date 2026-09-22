@@ -116,3 +116,23 @@ Options:
       --clear
           Clear the graph from the terminal after closing the program
 ```
+
+## TCP ping
+
+Use `--tcp` to graph TCP connection times instead of ICMP ping times. The default
+port is 80; select a different port with `--tcp-port`:
+
+```sh
+gping --tcp --tcp-port 443 example.com
+```
+
+By default, a refused connection (RST) counts as a successful ping because the
+host responded, even though it is not accepting connections on that port. To
+count refused connections as failed pings, use `--tcp-rst drop`:
+
+```sh
+gping --tcp --tcp-port 443 --tcp-rst drop example.com
+```
+
+`--tcp-rst pong` explicitly selects the default behavior. Both `--tcp-port` and
+`--tcp-rst` require `--tcp`.
