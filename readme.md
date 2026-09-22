@@ -33,6 +33,7 @@ Table of Contents
 * Windows/ARM:
   * Scoop: `scoop install gping`
   * Chocolatey: `choco install gping`
+  * WinGet: `winget.exe install orf.gping`
   * Download the latest release from [the github releases page](https://github.com/orf/gping/releases)
 * Fedora ([COPR](https://copr.fedorainfracloud.org/coprs/atim/gping/)): `sudo dnf copr enable atim/gping -y && sudo dnf install gping`
 * Cargo (**This requires `rustc` version 1.67.0 or greater**): `cargo install gping`
