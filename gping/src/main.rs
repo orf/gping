@@ -6,6 +6,7 @@ use itertools::{Itertools, MinMaxResult};
 use pinger::{ping, PingMode, PingOptions, PingResult};
 use std::io;
 use std::io::BufWriter;
+use std::io::IsTerminal;
 use std::iter;
 use std::net::{IpAddr, ToSocketAddrs};
 use std::path::Path;
@@ -443,6 +444,13 @@ fn main() -> Result<()> {
 
     if args.hosts_or_commands.is_empty() {
         return Err(anyhow!("At least one host or command must be given (i.e gping google.com). Use --help for a full list of arguments."));
+    }
+
+    // gping draws its UI by writing ANSI escape sequences to stdout, which only makes
+    // sense when stdout is a terminal. With a pipe or file we would just flood the
+    // consumer with rendering frames until killed.
+    if !io::stdout().is_terminal() {
+        bail!("gping requires a terminal to draw its graph, but stdout is piped or redirected");
     }
 
     let ymin = if args.ymin_zero { Some(0) } else { args.ymin };
