@@ -4,6 +4,7 @@ use chrono::prelude::*;
 use clap::{CommandFactory, Parser};
 use itertools::{Itertools, MinMaxResult};
 use pinger::{ping, PingMode, PingOptions, PingResult};
+use std::convert::TryFrom;
 use std::io;
 use std::io::BufWriter;
 use std::iter;
@@ -169,11 +170,16 @@ struct App {
 }
 
 impl App {
-    fn new(data: Vec<PlotData>, buffer: u64, yrange: (Option<f64>, Option<f64>)) -> Self {
+    fn new(
+        data: Vec<PlotData>,
+        display_interval: chrono::Duration,
+        yrange: (Option<f64>, Option<f64>),
+        started: DateTime<Local>,
+    ) -> Self {
         App {
             data,
-            display_interval: chrono::Duration::from_std(Duration::from_secs(buffer)).unwrap(),
-            started: Local::now(),
+            display_interval,
+            started,
             yrange,
         }
     }
@@ -417,6 +423,33 @@ fn ms_to_us_option(ms: Option<u64>) -> Option<f64> {
 
 // An inverted or empty vertical range leaves us nothing sensible to draw, so reject it
 // up front rather than quietly picking some other window to display.
+/// Convert `--buffer` seconds into a `chrono::Duration`, rejecting values that
+/// cannot be represented or that would push the graph window outside chrono's
+/// representable `DateTime` range.
+fn validate_buffer(buffer: u64, started: DateTime<Local>) -> Result<chrono::Duration> {
+    let display_interval = i64::try_from(buffer)
+        .ok()
+        .and_then(chrono::Duration::try_seconds)
+        .ok_or_else(|| anyhow!("Invalid buffer size: {buffer} seconds is out of range"))?;
+
+    // The graph window anchored at `started` is
+    // `started - display_interval ..= started + display_interval`, so both ends
+    // must stay within the representable `DateTime` range or the window
+    // arithmetic in `App::x_axis_bounds` would overflow. Validation and use
+    // must share the same `started` instant, otherwise a buffer near the
+    // boundary could pass validation but still overflow when the window is
+    // computed a moment later. `PlotData::update` derives its retention cutoff
+    // from a fresh clock reading and guards that subtraction separately,
+    // because the system clock can move backwards after startup.
+    if started.checked_sub_signed(display_interval).is_none()
+        || started.checked_add_signed(display_interval).is_none()
+    {
+        bail!("Invalid buffer size: {buffer} seconds is out of range");
+    }
+
+    Ok(display_interval)
+}
+
 fn validate_yrange(ymin: Option<u64>, ymax: Option<u64>) -> Result<()> {
     if let (Some(min), Some(max)) = (ymin, ymax) {
         if min >= max {
@@ -449,6 +482,11 @@ fn main() -> Result<()> {
     validate_yrange(ymin, args.ymax)?;
     let yrange = (ms_to_us_option(ymin), ms_to_us_option(args.ymax));
 
+    // Capture the graph-window start once so that buffer validation and the
+    // app's window arithmetic use the very same instant.
+    let started = Local::now();
+    let buffer = validate_buffer(args.buffer, started)?;
+
     let mut data = vec![];
 
     let colors = Colors::from(args.color_codes_or_names.iter());
@@ -474,7 +512,7 @@ fn main() -> Result<()> {
         };
         data.push(PlotData::new(
             display,
-            args.buffer,
+            buffer,
             Style::default().fg(color),
             args.simple_graphics,
         ));
@@ -541,7 +579,7 @@ fn main() -> Result<()> {
         key_tx.clone(),
     ));
 
-    let mut app = App::new(data, args.buffer, yrange);
+    let mut app = App::new(data, buffer, yrange, started);
     enable_raw_mode()?;
     let stdout = io::stdout();
     let mut backend = CrosstermBackend::new(BufWriter::with_capacity(1024 * 1024 * 4, stdout));
@@ -702,14 +740,75 @@ fn main() -> Result<()> {
 mod tests {
     use super::*;
 
+    fn fixed_started() -> DateTime<Local> {
+        DateTime::from(Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap())
+    }
+
+    #[test]
+    fn validate_buffer_rejects_out_of_range_values() {
+        let started = fixed_started();
+        // Does not fit into an i64.
+        assert!(validate_buffer(u64::MAX, started).is_err());
+        // Fits into an i64, but exceeds chrono::Duration's range.
+        assert!(validate_buffer(i64::MAX as u64, started).is_err());
+        // A valid chrono::Duration, but the graph window would leave the
+        // representable DateTime range (previously panicked in update()).
+        assert!(validate_buffer(9223372036854775, started).is_err());
+    }
+
+    #[test]
+    fn validate_buffer_accepts_previously_working_values() {
+        let started = fixed_started();
+        assert_eq!(
+            validate_buffer(0, started).unwrap(),
+            chrono::Duration::seconds(0)
+        );
+        assert_eq!(
+            validate_buffer(30, started).unwrap(),
+            chrono::Duration::seconds(30)
+        );
+        // ~253k years: large, but still inside chrono's DateTime range.
+        assert_eq!(
+            validate_buffer(8_000_000_000_000, started).unwrap(),
+            chrono::Duration::seconds(8_000_000_000_000)
+        );
+    }
+
+    #[test]
+    fn validate_buffer_matches_the_exact_usable_window() {
+        let started = fixed_started();
+        let started_utc = started.with_timezone(&Utc);
+        // The largest buffer whose whole window (started - buffer ..=
+        // started + buffer) stays inside chrono's representable DateTime
+        // range must validate, and one second more must not: validation and
+        // the app's own window arithmetic share the same `started` instant.
+        let max_utc = DateTime::<Utc>::from_naive_utc_and_offset(NaiveDateTime::MAX, Utc);
+        let min_utc = DateTime::<Utc>::from_naive_utc_and_offset(NaiveDateTime::MIN, Utc);
+        let forward = (max_utc - started_utc).num_seconds();
+        let backward = (started_utc - min_utc).num_seconds();
+        let max_ok = forward.min(backward);
+        assert!(validate_buffer(max_ok as u64, started).is_ok());
+        assert!(validate_buffer(max_ok as u64 + 1, started).is_err());
+    }
+
     /// An app holding a single host whose samples are the given microsecond values.
     fn app_with(samples: &[f64], yrange: (Option<f64>, Option<f64>)) -> App {
-        let mut plot = PlotData::new("host".to_string(), 30, Style::default(), false);
+        let mut plot = PlotData::new(
+            "host".to_string(),
+            chrono::Duration::seconds(30),
+            Style::default(),
+            false,
+        );
         let now = Local::now().timestamp_millis() as f64 / 1_000f64;
         for (i, value) in samples.iter().enumerate() {
             plot.data.push((now + i as f64, *value));
         }
-        App::new(vec![plot], 30, yrange)
+        App::new(
+            vec![plot],
+            chrono::Duration::seconds(30),
+            yrange,
+            Local::now(),
+        )
     }
 
     fn labels(app: &App, bounds: [f64; 2]) -> Vec<String> {
