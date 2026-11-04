@@ -1,4 +1,3 @@
-use anyhow::Context;
 use chrono::prelude::*;
 use core::option::Option;
 use core::option::Option::{None, Some};
@@ -17,14 +16,17 @@ pub struct PlotData {
 }
 
 impl PlotData {
-    pub fn new(display: String, buffer: u64, style: Style, simple_graphics: bool) -> PlotData {
+    pub fn new(
+        display: String,
+        buffer: chrono::Duration,
+        style: Style,
+        simple_graphics: bool,
+    ) -> PlotData {
         PlotData {
             display,
             data: Vec::with_capacity(150),
             style,
-            buffer: chrono::Duration::try_seconds(buffer as i64)
-                .with_context(|| format!("Error converting {buffer} to seconds"))
-                .unwrap(),
+            buffer,
             simple_graphics,
         }
     }
@@ -35,20 +37,29 @@ impl PlotData {
             Some(dur) => self.data.push((idx, dur.as_micros() as f64)),
             None => self.data.push((idx, f64::NAN)),
         }
-        // Find the last index that we should remove.
-        let earliest_timestamp = (now - self.buffer).timestamp_millis() as f64 / 1_000f64;
-        let last_idx = self
-            .data
-            .iter()
-            .enumerate()
-            .filter(|(_, (timestamp, _))| *timestamp < earliest_timestamp)
-            .map(|(idx, _)| idx)
-            .next_back();
-        if let Some(idx) = last_idx {
-            // `idx` itself is still stale (it matched the filter above), so it must be
-            // included in the drained range too, otherwise one out-of-window point is
-            // always left behind.
-            self.data.drain(0..=idx).for_each(drop)
+        // Find the last index that we should remove. Retention only applies a
+        // lower cutoff: if `now - buffer` falls below the representable
+        // `DateTime` range (e.g. the system clock moved backwards since
+        // startup), there is no representable cutoff, so no point counts as
+        // stale and everything is kept until a later clock reading makes the
+        // cutoff representable again.
+        let earliest_timestamp = now
+            .checked_sub_signed(self.buffer)
+            .map(|window_start| window_start.timestamp_millis() as f64 / 1_000f64);
+        if let Some(earliest_timestamp) = earliest_timestamp {
+            let last_idx = self
+                .data
+                .iter()
+                .enumerate()
+                .filter(|(_, (timestamp, _))| *timestamp < earliest_timestamp)
+                .map(|(idx, _)| idx)
+                .next_back();
+            if let Some(idx) = last_idx {
+                // `idx` itself is still stale (it matched the filter above), so it must be
+                // included in the drained range too, otherwise one out-of-window point is
+                // always left behind.
+                self.data.drain(0..=idx).for_each(drop)
+            }
         }
     }
 
@@ -146,9 +157,34 @@ mod tests {
     // `buffer` seconds should be dropped, including the single oldest stale point, which
     // used to survive because `drain(0..idx)` excluded the boundary index itself.
     #[test]
+    fn update_keeps_all_points_when_the_lower_cutoff_is_unrepresentable() {
+        // A buffer so large that `now - buffer` underflows the representable
+        // `DateTime` range must not panic: with no representable lower cutoff
+        // no stored point is stale, so all of them are kept.
+        let mut plot = PlotData::new(
+            "host".to_string(),
+            chrono::Duration::try_seconds(9_000_000_000_000_000).unwrap(),
+            Style::default(),
+            false,
+        );
+        let now = Local::now().timestamp_millis() as f64 / 1_000f64;
+        plot.data.push((now - 10.0, 100.0));
+        plot.data.push((now - 1.0, 200.0));
+
+        plot.update(Some(Duration::from_millis(5)));
+
+        assert_eq!(plot.data.len(), 3);
+    }
+
+    #[test]
     fn update_drops_all_points_outside_the_buffer_window() {
         let buffer_secs = 5u64;
-        let mut plot = PlotData::new("host".to_string(), buffer_secs, Style::default(), false);
+        let mut plot = PlotData::new(
+            "host".to_string(),
+            chrono::Duration::seconds(buffer_secs as i64),
+            Style::default(),
+            false,
+        );
 
         let now = Local::now().timestamp_millis() as f64 / 1_000f64;
 
