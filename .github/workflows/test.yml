@@ -38,7 +38,7 @@ jobs:
 
       - name: Install Rust
         id: rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache: 'false'
           cache-on-failure: false
@@ -115,7 +115,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install stable toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache-on-failure: false
           components: rustfmt,clippy
