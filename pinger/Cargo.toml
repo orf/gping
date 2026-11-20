@@ -17,7 +17,7 @@ winping = "0.10.1"
 
 [dev-dependencies]
 os_info = "3.14.0"
-ntest = "0.9.5"
+ntest = "0.10.0"
 anyhow = "1.0.101"
 
 [features]
