@@ -14,6 +14,10 @@ pub struct PlotData {
     pub style: Style,
     buffer: chrono::Duration,
     simple_graphics: bool,
+    /// Total packets sent so far (never trimmed with the graph buffer).
+    sent: u64,
+    /// Total packets that timed out so far (never trimmed either).
+    timeouts: u64,
 }
 
 impl PlotData {
@@ -26,14 +30,20 @@ impl PlotData {
                 .with_context(|| format!("Error converting {buffer} to seconds"))
                 .unwrap(),
             simple_graphics,
+            sent: 0,
+            timeouts: 0,
         }
     }
     pub fn update(&mut self, item: Option<Duration>) {
         let now = Local::now();
         let idx = now.timestamp_millis() as f64 / 1_000f64;
+        self.sent += 1;
         match item {
             Some(dur) => self.data.push((idx, dur.as_micros() as f64)),
-            None => self.data.push((idx, f64::NAN)),
+            None => {
+                self.timeouts += 1;
+                self.data.push((idx, f64::NAN));
+            }
         }
         // Find the last index that we should remove.
         let earliest_timestamp = (now - self.buffer).timestamp_millis() as f64 / 1_000f64;
@@ -52,8 +62,22 @@ impl PlotData {
         }
     }
 
+    /// Packet loss over the whole session (not just the graph buffer window):
+    /// returns `(loss_percent, timeouts, sent)`.
+    fn loss_stats(&self) -> (f64, u64, u64) {
+        let loss_percent = if self.sent > 0 {
+            self.timeouts as f64 / self.sent as f64 * 100.0
+        } else {
+            0.0
+        };
+        (loss_percent, self.timeouts, self.sent)
+    }
+
     pub fn header_stats(&self) -> Vec<Paragraph<'_>> {
         let ping_header = Paragraph::new(self.display.clone()).style(self.style);
+        let (loss_percent, timeouts_total, sent_total) = self.loss_stats();
+        let loss_line = Paragraph::new(format_loss_line(loss_percent, timeouts_total, sent_total))
+            .style(self.style);
         // Chronologically-ordered (i.e. not sorted) latencies, used for the jitter
         // calculation which needs to compare consecutive samples in the order they
         // actually occurred.
@@ -71,7 +95,9 @@ impl PlotData {
             .sorted_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .collect();
         if items.is_empty() {
-            return vec![ping_header];
+            // No successful ping in the current buffer window (e.g. at startup, or
+            // if every packet timed out): still show the packet loss rate.
+            return vec![ping_header, loss_line];
         }
 
         let min = **items.first().unwrap();
@@ -103,8 +129,14 @@ impl PlotData {
             Paragraph::new(format!("p95 {:?}", Duration::from_micros(p95 as u64)))
                 .style(self.style),
             Paragraph::new(format!("t/o {to:?}")).style(self.style),
+            loss_line,
         ]
     }
+}
+
+/// Render the packet loss line shown in the header stats, e.g. `loss 19.0% (19/100)`.
+fn format_loss_line(loss_percent: f64, timeouts: u64, sent: u64) -> String {
+    format!("loss {loss_percent:.1}% ({timeouts}/{sent})")
 }
 
 /// Average absolute difference between consecutive values, taken in the order
@@ -196,5 +228,109 @@ mod tests {
     #[test]
     fn test_jitter_empty_is_zero() {
         assert_eq!(jitter(&[]), 0.0);
+    }
+
+    // --- Packet loss rate (#114) ---
+
+    fn make_plot() -> PlotData {
+        PlotData::new("host".to_string(), 30, Style::default(), false)
+    }
+
+    #[test]
+    fn test_loss_stats_start_at_zero() {
+        let plot = make_plot();
+        assert_eq!(plot.loss_stats(), (0.0, 0, 0));
+        assert_eq!(format_loss_line(0.0, 0, 0), "loss 0.0% (0/0)");
+    }
+
+    #[test]
+    fn test_update_counts_sent_and_timeouts() {
+        let mut plot = make_plot();
+        plot.update(Some(Duration::from_millis(10)));
+        plot.update(Some(Duration::from_millis(20)));
+        plot.update(None); // timeout
+        plot.update(Some(Duration::from_millis(30)));
+        plot.update(None); // timeout
+
+        let (loss_percent, timeouts, sent) = plot.loss_stats();
+        assert_eq!(sent, 5);
+        assert_eq!(timeouts, 2);
+        assert!((loss_percent - 40.0).abs() < 1e-9);
+        assert_eq!(
+            format_loss_line(loss_percent, timeouts, sent),
+            "loss 40.0% (2/5)"
+        );
+    }
+
+    #[test]
+    fn test_loss_counters_survive_buffer_trim() {
+        // The graph buffer trims old points, but the loss counters must be
+        // cumulative over the whole session, like `ping`'s summary line.
+        let mut plot = PlotData::new("host".to_string(), 1, Style::default(), false); // 1s buffer
+        let now = Local::now().timestamp_millis() as f64 / 1_000f64;
+        // Seed stale points directly, then update: the stale ones get trimmed.
+        plot.data.push((now - 100.0, 100.0));
+        plot.data.push((now - 90.0, f64::NAN));
+        plot.update(Some(Duration::from_millis(42)));
+
+        let (loss_percent, timeouts, sent) = plot.loss_stats();
+        // `update` was called once, so sent == 1 even though the seeded points
+        // were trimmed from the graph data.
+        assert_eq!(sent, 1);
+        assert_eq!(timeouts, 0);
+        assert_eq!(loss_percent, 0.0);
+        assert!(
+            plot.data.iter().all(|(ts, _)| *ts >= now - 1.0),
+            "stale points should have been trimmed: {:?}",
+            plot.data
+        );
+    }
+
+    #[test]
+    fn test_loss_counters_count_seeded_updates() {
+        // Drive the counters purely through `update` with a tiny buffer so the
+        // graph window empties out, while the counters keep counting.
+        let mut plot = PlotData::new("host".to_string(), 0, Style::default(), false); // 0s buffer trims everything old
+        for _ in 0..3 {
+            plot.update(None);
+        }
+        plot.update(Some(Duration::from_millis(5)));
+
+        let (loss_percent, timeouts, sent) = plot.loss_stats();
+        assert_eq!(sent, 4);
+        assert_eq!(timeouts, 3);
+        assert!((loss_percent - 75.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_header_stats_includes_loss_line() {
+        let mut plot = make_plot();
+        plot.update(Some(Duration::from_millis(10)));
+        plot.update(None);
+
+        let header = plot.header_stats();
+        // host line + 7 stat lines + loss line
+        assert_eq!(header.len(), 9);
+    }
+
+    #[test]
+    fn test_header_stats_all_timeouts_still_shows_loss() {
+        // Every packet timed out: no non-NaN items, but the loss line must
+        // still be rendered (with 100% loss).
+        let mut plot = make_plot();
+        plot.update(None);
+        plot.update(None);
+
+        let header = plot.header_stats();
+        assert_eq!(header.len(), 2); // host line + loss line only
+        let (loss_percent, timeouts, sent) = plot.loss_stats();
+        assert_eq!((timeouts, sent), (2, 2));
+        assert!((loss_percent - 100.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_format_loss_line_rounds_to_one_decimal() {
+        assert_eq!(format_loss_line(33.333, 1, 3), "loss 33.3% (1/3)");
+        assert_eq!(format_loss_line(0.0, 0, 10), "loss 0.0% (0/10)");
     }
 }
